@@ -170,6 +170,28 @@ async function searchSources(query) {
 }
 
 
+const RUSSIAN_COLLECTIONS = {
+  "Российское": ["Брат","Брат 2","Левиафан","Дурак","Нелюбовь","Холоп","Последний богатырь","Майор Гром","Лёд","Движение вверх","Слово пацана","Бригада","Метод","Кухня","Триггер","Вампиры средней полосы","Фишер","Эпидемия"],
+  "Советское": ["Москва слезам не верит","Ирония судьбы","Бриллиантовая рука","Операция Ы","Иван Васильевич меняет профессию","Служебный роман","Любовь и голуби","Белое солнце пустыни","Семнадцать мгновений весны"],
+  "Мультфильмы": ["Ну, погоди!","Ёжик в тумане","Трое из Простоквашино","Винни-Пух","Маша и Медведь","Смешарики","Фиксики","Иван Царевич и Серый Волк"]
+};
+async function discoverRussianCatalog() {
+  const jobs = Object.entries(RUSSIAN_COLLECTIONS).flatMap(([collection,titles])=>titles.map(title=>({collection,title})));
+  const items=[],warnings=[];
+  let cursor=0;
+  async function worker(){
+    while(cursor<jobs.length){
+      const job=jobs[cursor++];
+      try{const result=await searchCatalog(job.title);items.push(...result.items.map(item=>({...item,collection:job.collection})));if(result.warnings?.length)warnings.push(...result.warnings)}
+      catch(error){warnings.push(error.message||"Ошибка поиска")}
+    }
+  }
+  await Promise.all(Array.from({length:6},()=>worker()));
+  const unique=[...new Map(items.map(item=>[item.id||(item.title+item.year),item])).values()];
+  if(!unique.length)throw new Error("Подборки временно недоступны. Попробуйте позже.");
+  return {items:unique,warnings:[...new Set(warnings)].slice(0,5)};
+}
+
 async function discoverCatalog() {
   const types = ["movie", "series"];
   const settled = await Promise.allSettled(types.map(async type => {
@@ -266,6 +288,15 @@ const server = http.createServer(async (req, res) => {
   if (url.pathname === "/api/catalog/discover" && req.method === "GET") {
     try {
       const result = await cached("catalog:discover", 10 * 60 * 1000, discoverCatalog);
+      return send(res, 200, { provider: "Cinemeta", ratingSource: "IMDb", items: result.items, warnings: result.warnings });
+    } catch (error) {
+      return send(res, 502, { error: "catalog_unavailable", provider: "Cinemeta", message: error.message });
+    }
+  }
+
+  if (url.pathname === "/api/catalog/russian" && req.method === "GET") {
+    try {
+      const result = await cached("catalog:russian", 30 * 60 * 1000, discoverRussianCatalog);
       return send(res, 200, { provider: "Cinemeta", ratingSource: "IMDb", items: result.items, warnings: result.warnings });
     } catch (error) {
       return send(res, 502, { error: "catalog_unavailable", provider: "Cinemeta", message: error.message });
