@@ -22,16 +22,43 @@
 <script>
 const movies=[];
 const providers=["Internet Archive","VideoDB","HDRezka","Showy","KinoGo","TorrServe"];
-let remoteResults=[];let filter="Все",custom=JSON.parse(localStorage.getItem("cos_sources")||"[]"),favorites=JSON.parse(localStorage.getItem("cos_fav")||"[]");
+let remoteResults=[],catalogItems=[];let filter="Все",custom=JSON.parse(localStorage.getItem("cos_sources")||"[]"),favorites=JSON.parse(localStorage.getItem("cos_fav")||"[]");
 const $=id=>document.getElementById(id);
 function go(page){document.querySelectorAll(".page").forEach(x=>x.classList.toggle("active",x.id===page));document.querySelectorAll(".nav button").forEach(x=>x.classList.toggle("active",x.dataset.page===page));$("pageTitle").textContent=({home:"Главная",catalog:"Каталог",search:"Поиск",favorites:"Избранное",sources:"Источники",settings:"Настройки"})[page];if(page==="favorites")renderFav();if(page==="sources")renderSources();if(page==="catalog")renderCatalog();if(page==="home")renderHome();if(page==="search"&&!$("searchTop").value.trim())$("searchStatus").textContent="Введите название фильма или сериала.";$("searchTop").style.display=page==="search"||page==="catalog"||page==="home"?"block":"none";}
 document.querySelectorAll(".nav button").forEach(b=>b.onclick=()=>go(b.dataset.page));
 function esc(s){return String(s??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]))}
 function card(m){let art=m.poster?'<img src="'+esc(m.poster)+'" alt="" style="width:100%;height:190px;object-fit:cover">':'<div class="art" style="--a:'+(m.a||'#153f62')+';--b:'+(m.b||'#522b76')+'">'+esc(m.title)+'</div>';let rating=m.rating!=null?' · ★ '+m.rating+(m.ratingSource?' '+m.ratingSource:''):' · нет оценки';return '<button class="poster" data-id="'+m.id+'">'+art+'<div class="poster-info"><b>'+esc(m.title)+'</b><small>'+esc(m.year||'')+' · '+esc(m.type||'')+rating+'</small></div></button>'}
-function bindCards(root){root.querySelectorAll(".poster").forEach(b=>b.onclick=()=>details(+b.dataset.id))}
-function renderHome(){$("homeGrid").innerHTML='<div class="empty">Здесь будут результаты вашего поиска. Введите название фильма или сериала в строку поиска.</div>'}
-function renderCatalog(){$("catalogGrid").innerHTML='<div class="empty">Для реального каталога воспользуйтесь поиском по названию фильма или сериала.</div>'}
-function renderFav(){let arr=movies.filter(m=>favorites.includes(m.id));$("favGrid").innerHTML=arr.length?arr.map(card).join(""):'<div class="empty">Здесь пока пусто. Добавляйте фильмы в избранное из карточки.</div>';bindCards($("favGrid"))}
+function bindCards(root){bindRemoteCards(root)}
+function renderHome(){
+ $("homeGrid").innerHTML=catalogItems.length?catalogItems.slice(0,12).map(card).join(""):'<div class="empty">Загружаем популярные фильмы и сериалы…</div>';
+ bindRemoteCards($("homeGrid"));
+}
+function renderCatalog(){
+ let list=catalogItems.filter(m=>filter==="Все"||(filter==="Анимация"?/animation|анимац/i.test(m.genre):m.type===filter));
+ $("catalogGrid").innerHTML=list.length?list.map(card).join(""):'<div class="empty">В этой категории пока нет карточек.</div>';
+ bindRemoteCards($("catalogGrid"));
+}
+function renderFav(){
+ let all=[...catalogItems,...remoteResults],arr=[...new Map(all.map(m=>[m.id,m])).values()].filter(m=>favorites.includes(m.id));
+ $("favGrid").innerHTML=arr.length?arr.map(card).join(""):'<div class="empty">Здесь пока пусто. Добавляйте фильмы в избранное из карточки.</div>';
+ bindRemoteCards($("favGrid"));
+}
+async function loadCatalog(){
+ if(catalogItems.length){renderHome();renderCatalog();return}
+ $("homeGrid").innerHTML='<div class="empty">Загружаем популярные фильмы и сериалы…</div>';
+ $("catalogGrid").innerHTML='<div class="empty">Загружаем каталог…</div>';
+ try{
+  const response=await fetch("/api/catalog/discover",{headers:{accept:"application/json"}});
+  const data=await response.json();
+  if(!response.ok)throw new Error(data.message||("HTTP "+response.status));
+  catalogItems=(data.items||[]).map((x,i)=>({id:"cinemeta_"+(x.id||i),title:x.title||"Без названия",year:x.year||"",type:x.type||"Фильм",genre:x.genre||"",desc:x.desc||"",poster:x.poster||"",rating:typeof x.rating==="number"?x.rating:null,ratingSource:"IMDb",imdbId:x.imdbId}));
+  renderHome();renderCatalog();
+  if(data.warnings&&data.warnings.length)console.warn("Catalog warnings",data.warnings);
+ }catch(e){
+  $("homeGrid").innerHTML='<div class="empty">Не удалось загрузить каталог: '+esc(e.message)+'. Поиск по названию всё ещё доступен.</div>';
+  $("catalogGrid").innerHTML='<div class="empty">Каталог временно недоступен. Попробуйте поиск.</div>';
+ }
+}
 let searchSequence=0,searchTimer=null;
 async function runSearch(q){
  const sequence=++searchSequence;
@@ -56,23 +83,21 @@ async function runSearch(q){
 }
 function bindRemoteCards(root){root.querySelectorAll(".poster").forEach(b=>b.onclick=()=>remoteDetails(b.dataset.id))}
 function remoteDetails(id){
- let m=remoteResults.find(x=>String(x.id)===String(id));if(!m)return;window.__cosCurrentMovie=m;
- $("dialog").innerHTML='<button class="close" onclick="closeModal()">Закрыть ✕</button><div class="eyebrow">'+esc(m.type)+' · '+esc(m.year)+'</div><h2>'+esc(m.title)+'</h2><p class="muted">'+esc(m.genre)+'</p><p>'+esc(m.desc||"Описание отсутствует.")+'</p><p><b>IMDb: '+(m.rating==null?"нет оценки":"★ "+m.rating.toFixed(1)+"/10")+'</b></p><div class="row"><button class="primary" onclick="findMovieSources()">Найти варианты просмотра</button><button class="secondary" onclick="openPlayer()">Прямая ссылка</button></div>';
+ let m=[...remoteResults,...catalogItems].find(x=>String(x.id)===String(id));if(!m)return;
+ window.__cosCurrentMovie=m;
+ const fav=favorites.includes(m.id);
+ const safeId=String(m.id).replace(/\\/g,"\\\\").replace(/'/g,"\\'");
+ $("dialog").innerHTML='<button class="close" onclick="closeModal()">Закрыть ✕</button><div class="eyebrow">'+esc(m.type)+' · '+esc(m.year)+'</div><h2>'+esc(m.title)+'</h2><p class="muted">'+esc(m.genre)+'</p><p>'+esc(m.desc||"Описание отсутствует.")+'</p><p><b>IMDb: '+(m.rating==null?"нет оценки":"★ "+Number(m.rating).toFixed(1)+"/10")+'</b></p><div class="row"><button class="primary" onclick="findMovieSources()">Найти варианты просмотра</button><button class="secondary" onclick="toggleFav(\''+safeId+'\')">'+(fav?"Убрать из избранного":"♡ В избранное")+'</button><button class="secondary" onclick="openPlayer()">Прямая ссылка</button></div><p class="muted">Доступность видео зависит от подключённых легальных источников и поддержки формата телевизором.</p>';
  $("modal").classList.add("open");
 }
 $("searchTop").oninput=e=>{if(!$("search").classList.contains("active"))go("search");clearTimeout(searchTimer);const q=e.target.value;searchTimer=setTimeout(()=>runSearch(q),350)};
 $("filters").onclick=e=>{let b=e.target.closest("[data-filter]");if(!b)return;filter=b.dataset.filter;document.querySelectorAll("#filters .chip").forEach(x=>x.classList.toggle("active",x===b));renderCatalog()};
-function details(id){
- let m=movies.find(x=>x.id===id);let fav=favorites.includes(id);window.__cosCurrentMovie=m;
- $("dialog").innerHTML='<button class="close" onclick="closeModal()">Закрыть ✕</button><div class="eyebrow">'+m.type.toUpperCase()+' · '+m.year+'</div><h2>'+esc(m.title)+'</h2><p class="muted">'+esc(m.genre)+'</p><p>'+esc(m.desc)+'</p><div class="row"><button class="primary" onclick="findMovieSources()">Найти варианты просмотра</button><button class="secondary" onclick="toggleFav('+id+')">'+(fav?"Убрать из избранного":"♡ В избранное")+'</button></div><p class="muted">Демо-карточка. Источники появятся после подключения совместимого адаптера.</p>';
- $("modal").classList.add("open");
-}
 function openPlayer(){ $("dialog").innerHTML='<button class="close" onclick="closeModal()">Закрыть ✕</button><h2>Воспроизведение</h2><p class="muted">Вставьте прямую ссылку на видеофайл или поддерживаемый поток.</p><input id="playUrl" class="field" style="width:100%" placeholder="https://example.com/video.mp4"><div class="row" style="margin:12px 0"><button class="primary" onclick="playDirect()">Запустить</button></div><video id="video" class="player" controls autoplay></video><p class="muted">Поддержка зависит от формата и возможностей браузера MSX/webOS.</p>'}
 function playDirect(){let u=$("playUrl").value.trim();if(!/^https?:\/\//i.test(u)){alert("Укажите корректный http(s) URL");return}let v=$("video");v.src=u;v.play().catch(()=>alert("Не удалось запустить поток в этом браузере."))}
 
 function closeModal(){$("modal").classList.remove("open")}
 $("modal").onclick=e=>{if(e.target===$("modal"))closeModal()};
-function toggleFav(id){favorites=favorites.includes(id)?favorites.filter(x=>x!==id):[...favorites,id];localStorage.setItem("cos_fav",JSON.stringify(favorites));details(id)}
+function toggleFav(id){favorites=favorites.includes(id)?favorites.filter(x=>x!==id):[...favorites,id];localStorage.setItem("cos_fav",JSON.stringify(favorites));renderFav();remoteDetails(id)}
 function renderSources(){$("sourceList").innerHTML=providers.map(n=>'<div class="source"><span class="dot" style="background:'+(n==="Internet Archive"?"#39d9ff":"#e7aa49")+'"></span><b>'+n+'</b><span class="badge">'+(n==="Internet Archive"?"ПОИСК БЕЗ КЛЮЧА · ОТКРЫТЫЕ ПРАВА":"ТРЕБУЕТСЯ ОТДЕЛЬНЫЙ АДАПТЕР")+'</span></div>').join("");$("customSources").innerHTML=custom.map((s,i)=>'<div class="source"><span class="dot"></span><b>'+esc(s.name)+'</b><span class="badge">JSON API</span><button class="chip" onclick="removeSource('+i+')">Удалить</button></div>').join("")}
 $("addSource").onclick=()=>{let name=$("sourceName").value.trim(),url=$("sourceUrl").value.trim();if(!name||!/^https?:\/\//i.test(url)){alert("Введите название и корректный URL");return}custom.push({name,url});localStorage.setItem("cos_sources",JSON.stringify(custom));$("sourceName").value="";$("sourceUrl").value="";renderSources()};
 
@@ -134,5 +159,5 @@ function removeSource(i){custom.splice(i,1);localStorage.setItem("cos_sources",J
 $("exportData").onclick=()=>{let blob=new Blob([JSON.stringify({favorites,custom},null,2)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="cinema-os-settings.json";a.click();URL.revokeObjectURL(a.href)};
 $("resetData").onclick=()=>{if(confirm("Удалить избранное и пользовательские источники?")){favorites=[];custom=[];localStorage.removeItem("cos_fav");localStorage.removeItem("cos_sources");renderSources();alert("Настройки сброшены")}};
 document.addEventListener("keydown",e=>{if(e.key==="Escape")closeModal();if(e.key==="Backspace"&&document.activeElement!==$("searchTop"))closeModal()});
-renderHome();renderCatalog();go("home");
+renderHome();renderCatalog();loadCatalog();go("home");
 </script></body></html>
