@@ -160,30 +160,21 @@ async function searchConfiguredAdapters(query, media = {}) {
   };
 }
 
-async function searchMosfilm(query) {
-  const url = new URL("https://mosfilm.ru/cinema/films/");
-  url.searchParams.set("q", query);
-  return [{source:"Мосфильм (официальный каталог)",title:"Искать «"+query+"» в официальном каталоге Мосфильма",url:url.href,type:"link"}];
-}
-
 async function searchSources(query, media = {}) {
-  const [archive, configured, mosfilm] = await Promise.all([
+  const [archive, configured] = await Promise.all([
     searchInternetArchive(query).then(items => ({ items, error: null }))
       .catch(error => ({ items: [], error: "Internet Archive: " + error.message })),
-    searchConfiguredAdapters(query, media),
-    searchMosfilm(query).then(items => ({ items, error: null }))
-      .catch(error => ({ items: [], error: "Мосфильм: " + error.message }))
+    searchConfiguredAdapters(query, media)
   ]);
 
   const errors = [...configured.errors];
   if (archive.error) errors.unshift(archive.error);
-  if (mosfilm.error) errors.push(mosfilm.error);
-  if (!archive.items.length && !configured.items.length && !mosfilm.items.length && !errors.length) {
-    errors.push("В открытом архиве не найдено видео с подтверждённой лицензией. Попробуйте оригинальное название.");
+  if (!archive.items.length && !configured.items.length && !errors.length) {
+    errors.push("В доступных источниках варианты не найдены. Попробуйте другое написание названия.");
   }
 
   return {
-    items: [...archive.items, ...mosfilm.items, ...configured.items],
+    items: [...archive.items, ...configured.items],
     errors,
     providers: { internetArchive: archive.error ? "temporarily_unavailable" : "available" }
   };
