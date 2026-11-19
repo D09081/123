@@ -46,37 +46,30 @@ const server = http.createServer(async (req, res) => {
   if (url.pathname === "/api/catalog/search" && req.method === "GET") {
     const query = (url.searchParams.get("query") || "").trim();
     if (!query) return send(res, 400, { error: "query_required" });
-    const token = process.env.TMDB_ACCESS_TOKEN;
-    const apiKey = process.env.TMDB_API_KEY;
-    if (!token && !apiKey) return send(res, 503, { error: "catalog_key_not_configured", message: "Set TMDB_ACCESS_TOKEN or TMDB_API_KEY in Render environment variables." });
     try {
-      const tmdb = new URL("https://api.themoviedb.org/3/search/multi");
-      tmdb.searchParams.set("query", query);
-      tmdb.searchParams.set("language", "ru-RU");
-      tmdb.searchParams.set("include_adult", "false");
-      tmdb.searchParams.set("page", "1");
-      if (apiKey) tmdb.searchParams.set("api_key", apiKey);
-      const headers = { accept: "application/json" };
-      if (token) headers.Authorization = "Bearer " + token;
-      const response = await fetch(tmdb, { headers, signal: AbortSignal.timeout(15000) });
-      if (!response.ok) return send(res, response.status, { error: "catalog_provider_error", provider: "TMDB", status: response.status });
-      const body = await response.json();
-      const items = (body.results || []).filter(x => x.media_type === "movie" || x.media_type === "tv").map(x => ({
-        id: x.id,
-        title: x.title || x.name || x.original_title || x.original_name || "Без названия",
-        year: (x.release_date || x.first_air_date || "").slice(0, 4),
-        type: x.media_type === "tv" ? "Сериал" : "Фильм",
-        genre: "",
-        desc: x.overview || "",
-        poster: x.poster_path ? "https://image.tmdb.org/t/p/w500" + x.poster_path : "",
-        rating: typeof x.vote_average === "number" && x.vote_count > 0 ? Number(x.vote_average.toFixed(1)) : null,
-        ratingSource: "TMDB",
-        voteCount: x.vote_count || 0,
-        tmdbId: x.id,
-        mediaType: x.media_type
+      const encoded = encodeURIComponent(query);
+      const types = ["movie", "series"];
+      const responses = await Promise.all(types.map(async type => {
+        const endpoint = "https://v3-cinemeta.strem.io/catalog/" + type + "/top/search=" + encoded + ".json";
+        const response = await fetch(endpoint, { headers: { accept: "application/json" }, signal: AbortSignal.timeout(15000) });
+        if (!response.ok) throw new Error("Cinemeta " + type + " HTTP " + response.status);
+        return { type, body: await response.json() };
       }));
-      return send(res, 200, { provider: "TMDB", items });
-    } catch (e) { return send(res, 502, { error: "catalog_unavailable", provider: "TMDB", message: e.message }); }
+      const items = responses.flatMap(({ type, body }) => (body.metas || []).map(x => ({
+        id: x.imdb_id || x.id,
+        title: x.name || x.title || "Без названия",
+        year: x.year || (x.releaseInfo || "").slice(0, 4),
+        type: type === "series" ? "Сериал" : "Фильм",
+        genre: Array.isArray(x.genres) ? x.genres.join(", ") : "",
+        desc: x.description || "",
+        poster: x.poster || "",
+        rating: typeof x.imdbRating === "number" ? x.imdbRating : (x.imdbRating && !Number.isNaN(Number(x.imdbRating)) ? Number(x.imdbRating) : null),
+        ratingSource: "IMDb",
+        imdbId: x.imdb_id || x.id || null
+      })));
+      const unique = [...new Map(items.map(x => [x.id || (x.title + x.year), x])).values()];
+      return send(res, 200, { provider: "Cinemeta", ratingSource: "IMDb", items: unique });
+    } catch (e) { return send(res, 502, { error: "catalog_unavailable", provider: "Cinemeta", message: e.message }); }
   }
   if (url.pathname === "/api/sources/search" && req.method === "GET") {
     const query = (url.searchParams.get("query") || "").trim();
