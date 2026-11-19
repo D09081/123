@@ -132,7 +132,7 @@ async function searchAdapterResults(q){
 async function findMovieSources(){
  const m=window.__cosCurrentMovie;if(!m)return;
  $("dialog").innerHTML='<button class="close" onclick="closeModal()">Закрыть ✕</button><h2>Источники · '+esc(m.title)+'</h2><div class="empty">Проверяем подключённые источники…</div>';
- const r=await searchAdapterResults(m.title+(m.year?" "+m.year:""));window.__cosAdapterResults=r.items;
+ const r=await searchAdapterResults(m.title);window.__cosAdapterResults=r.items;
  $("dialog").innerHTML='<button class="close" onclick="closeModal()">Закрыть ✕</button><h2>Источники · '+esc(m.title)+'</h2>'+
  (r.items.length?r.items.map(x=>'<div class="source"><span class="dot" style="background:#39d9ff"></span><div style="min-width:0;flex:1"><b>'+esc(x.title)+'</b><div class="muted">'+esc(x.source)+' · '+esc(x.quality||"качество не указано")+' · '+esc(x.voice||"озвучка не указана")+(x.rating!=null?' · ★ '+esc(x.rating):' · рейтинг не предоставлен')+'</div></div><button class="primary" onclick="playAdapterResult('+x.id+')">Смотреть</button></div>').join(""):'<div class="empty">Подходящие варианты не найдены.</div>')+(r.errors.length?'<p class="muted">'+r.errors.map(esc).join("<br>")+'</p>':"");
 }
@@ -159,5 +159,5 @@ function removeSource(i){custom.splice(i,1);localStorage.setItem("cos_sources",J
 $("exportData").onclick=()=>{let blob=new Blob([JSON.stringify({favorites,custom},null,2)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="cinema-os-settings.json";a.click();URL.revokeObjectURL(a.href)};
 $("resetData").onclick=()=>{if(confirm("Удалить избранное и пользовательские источники?")){favorites=[];custom=[];localStorage.removeItem("cos_fav");localStorage.removeItem("cos_sources");renderSources();alert("Настройки сброшены")}};
 document.addEventListener("keydown",e=>{if(e.key==="Escape")closeModal();if(e.key==="Backspace"&&document.activeElement!==$("searchTop"))closeModal()});
-renderHome();renderCatalog();loadCatalog();go("home");
+renderHome();renderCatalog();go("home");
 </script></body></html>
