@@ -5,6 +5,14 @@ const path = require("node:path");
 const PORT = Number(process.env.PORT || 3000);
 const ROOT = __dirname;
 const TIMEOUT_MS = 15000;
+const apiCache = new Map();
+async function cached(key, ttlMs, loader) {
+  const current = apiCache.get(key);
+  if (current && current.expiresAt > Date.now()) return current.value;
+  const value = await loader();
+  apiCache.set(key, { value, expiresAt: Date.now() + ttlMs });
+  return value;
+}
 
 function send(res, status, data, type = "application/json; charset=utf-8") {
   res.writeHead(status, {
@@ -252,12 +260,12 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, "http://localhost");
 
   if (url.pathname === "/api/health") {
-    return send(res, 200, { ok: true, app: "Cinema OS API", status: "running" });
+    return send(res, 200, { ok: true, app: "Cinema OS API", status: "running", version: "1.1.0", capabilities: ["catalog", "search", "favorites-client", "open-rights-sources", "direct-player"] });
   }
 
   if (url.pathname === "/api/catalog/discover" && req.method === "GET") {
     try {
-      const result = await discoverCatalog();
+      const result = await cached("catalog:discover", 10 * 60 * 1000, discoverCatalog);
       return send(res, 200, { provider: "Cinemeta", ratingSource: "IMDb", items: result.items, warnings: result.warnings });
     } catch (error) {
       return send(res, 502, { error: "catalog_unavailable", provider: "Cinemeta", message: error.message });
@@ -268,7 +276,7 @@ const server = http.createServer(async (req, res) => {
     const query = (url.searchParams.get("query") || "").trim();
     if (!query) return send(res, 400, { error: "query_required" });
     try {
-      const result = await searchCatalog(query);
+      const result = await cached("catalog:search:" + query.toLowerCase(), 3 * 60 * 1000, () => searchCatalog(query));
       return send(res, 200, { provider: "Cinemeta", ratingSource: "IMDb", items: result.items, warnings: result.warnings });
     } catch (error) {
       return send(res, 502, { error: "catalog_unavailable", provider: "Cinemeta", message: error.message });
@@ -279,7 +287,7 @@ const server = http.createServer(async (req, res) => {
     const query = (url.searchParams.get("query") || "").trim();
     if (!query) return send(res, 400, { error: "query_required" });
     try {
-      return send(res, 200, await searchSources(query));
+      return send(res, 200, await cached("sources:search:" + query.toLowerCase(), 60 * 1000, () => searchSources(query)));
     } catch (error) {
       return send(res, 502, { error: "sources_unavailable", message: error.message });
     }
