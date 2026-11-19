@@ -115,7 +115,7 @@ async function searchConfiguredAdapters(query, media = {}) {
       let rows = [];
       if ((source.protocol || "json") === "stremio") {
         if (!media.imdbId) throw new Error("Для этого фильма нет IMDb ID, поэтому Stremio-поиск недоступен");
-        const base = source.url.replace(/\\/+$/, "").replace(/\\/manifest\\.json$/i, "");
+        const base = source.url.replace(/\/+$/, "").replace(/\/manifest\.json$/i, "");
         const mediaType = media.type === "Сериал" || media.type === "series" ? "series" : "movie";
         const endpoint = new URL(base + "/stream/" + mediaType + "/" + encodeURIComponent(media.imdbId) + ".json");
         const response = await fetch(endpoint, {
