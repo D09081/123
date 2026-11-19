@@ -65,8 +65,19 @@ $("addSource").onclick=()=>{let name=$("sourceName").value.trim(),url=$("sourceU
 
 async function searchAdapterResults(q){
  if(!q)return {items:[],errors:["Введите название фильма или сериала."]};
- if(!custom.length)return {items:[],errors:["Нет подключённых адаптеров. Добавьте совместимый JSON API в разделе «Источники»."]};
  let all=[],errors=[];
+ // Prefer server-side adapters configured in Render. This avoids browser CORS restrictions.
+ try{
+  const response=await fetch("/api/sources/search?query="+encodeURIComponent(q),{headers:{accept:"application/json"}});
+  if(response.ok){
+   const data=await response.json();
+   (data.items||[]).forEach((x,i)=>all.push({...x,id:all.length}));
+   errors.push(...(data.errors||[]));
+  }else if(response.status!==404){
+   errors.push("Сервер источников: HTTP "+response.status);
+  }
+ }catch(e){ /* Static GitHub Pages mode: use browser-side adapters below. */ }
+ // Keep user-added browser adapters as a fallback for static hosting.
  for(const s of custom){
   try{
    const u=new URL(s.url);u.searchParams.set("q",q);
@@ -74,10 +85,11 @@ async function searchAdapterResults(q){
    if(!response.ok)throw new Error("HTTP "+response.status);
    const data=await response.json();
    const rows=Array.isArray(data)?data:(Array.isArray(data.results)?data.results:(Array.isArray(data.items)?data.items:[]));
-   rows.forEach(x=>{if(x&&x.url&&/^https?:\\/\\//i.test(String(x.url)))all.push({source:s.name,title:x.title||x.name||"Без названия",url:x.url,type:x.type||"video",rating:x.rating,quality:x.quality,voice:x.voice,id:all.length})});
-  }catch(e){errors.push(s.name+": "+e.message+" (возможен CORS или несовместимый формат)")};
+   rows.forEach(x=>{if(x&&typeof x.url==="string"&&/^https?:\\/\\//i.test(x.url))all.push({source:s.name,title:x.title||x.name||"Без названия",url:x.url,type:x.type==="iframe"?"iframe":"video",rating:x.rating,quality:x.quality,voice:x.voice,id:all.length})});
+  }catch(e){errors.push(s.name+": "+e.message+" (возможен CORS или несовместимый формат)")}
  }
- return {items:all,errors:errors};
+ if(!all.length&&!errors.length)errors.push("Источники пока не настроены на сервере Render. Нужны совместимые JSON API-адаптеры.");
+ return {items:all,errors};
 }
 async function findMovieSources(){
  const m=window.__cosCurrentMovie;if(!m)return;
