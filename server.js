@@ -19,8 +19,54 @@ function getAdapters() {
     return Array.isArray(raw) ? raw.filter(x => x && typeof x.name === "string" && typeof x.url === "string") : [];
   } catch { return []; }
 }
+function escapeSolr(value) {
+  return String(value).replace(/[+\-!(){}\[\]^"~*?:\\/]/g, "\\async function searchSources(query) {");
+}
+function hasOpenRights(meta) {
+  const text = [meta.licenseurl, meta.rights].flat().filter(Boolean).join(" ").toLowerCase();
+  return /creativecommons\.org\/(licenses|publicdomain)|creativecommons|public domain|publicdomain|cc0|cc-by|cc by|open access/.test(text);
+}
+async function searchInternetArchive(query) {
+  const q = 'mediatype:movies AND title:"' + escapeSolr(query) + '"';
+  const searchUrl = new URL("https://archive.org/advancedsearch.php");
+  searchUrl.searchParams.set("q", q);
+  ["identifier","title","year","description","creator"].forEach(f => searchUrl.searchParams.append("fl[]", f));
+  searchUrl.searchParams.set("rows", "8");
+  searchUrl.searchParams.set("page", "1");
+  searchUrl.searchParams.set("output", "json");
+  const sr = await fetch(searchUrl, { headers: { accept: "application/json" }, signal: AbortSignal.timeout(12000) });
+  if (!sr.ok) throw new Error("Internet Archive search HTTP " + sr.status);
+  const searchData = await sr.json();
+  const docs = searchData.response?.docs || [];
+  const results = await Promise.all(docs.map(async doc => {
+    try {
+      const mr = await fetch("https://archive.org/metadata/" + encodeURIComponent(doc.identifier), {
+        headers: { accept: "application/json" }, signal: AbortSignal.timeout(10000)
+      });
+      if (!mr.ok) return [];
+      const record = await mr.json();
+      if (!record.metadata || !hasOpenRights(record.metadata)) return [];
+      const files = (record.files || []).filter(file =>
+        typeof file.name === "string" && /\.(mp4|webm|ogv)$/i.test(file.name) &&
+        !file.name.startsWith("__") && file.source !== "metadata"
+      ).slice(0, 4);
+      return files.map(file => ({
+        source: "Internet Archive",
+        title: (record.metadata.title || doc.title || query) + (files.length > 1 ? " · " + file.name : ""),
+        url: "https://archive.org/download/" + encodeURIComponent(doc.identifier) + "/" + file.name.split("/").map(encodeURIComponent).join("/"),
+        type: "video",
+        quality: file.format || file.name.split(".").pop().toUpperCase(),
+        voice: record.metadata.language || null,
+        rights: record.metadata.licenseurl || record.metadata.rights || "Открытые права указаны в метаданных",
+        itemUrl: "https://archive.org/details/" + encodeURIComponent(doc.identifier)
+      }));
+    } catch { return []; }
+  }));
+  return results.flat();
+}
 async function searchSources(query) {
   const adapters = getAdapters();
+  const archivePromise = searchInternetArchive(query).catch(error => { console.error("Internet Archive:", error.message); return []; });
   const settled = await Promise.all(adapters.map(async source => {
     try {
       const url = new URL(source.url);
@@ -37,7 +83,8 @@ async function searchSources(query) {
       })), error: null };
     } catch (e) { return { items: [], error: source.name + ": " + e.message }; }
   }));
-  return { items: settled.flatMap(x => x.items), errors: settled.map(x => x.error).filter(Boolean) };
+  const archiveItems = await archivePromise;
+  return { items: [...archiveItems, ...settled.flatMap(x => x.items)], errors: settled.map(x => x.error).filter(Boolean), providers: { internetArchive: "available" } };
 }
 const server = http.createServer(async (req, res) => {
   if (req.method === "OPTIONS") return send(res, 204, {});
