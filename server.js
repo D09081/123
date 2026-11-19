@@ -33,7 +33,7 @@ function getAdapters() {
   try {
     const raw = JSON.parse(process.env.SOURCE_ADAPTERS || "[]");
     return Array.isArray(raw)
-      ? raw.filter(x => x && typeof x.name === "string" && typeof x.url === "string")
+      ? raw.filter(x => x && typeof x.name === "string" && typeof x.url === "string" && ["json", "stremio"].includes(x.protocol || "json"))
       : [];
   } catch {
     return [];
@@ -108,32 +108,44 @@ async function searchInternetArchive(query) {
   return groups.flat();
 }
 
-async function searchConfiguredAdapters(query) {
+async function searchConfiguredAdapters(query, media = {}) {
   const adapters = getAdapters();
   const responses = await Promise.all(adapters.map(async source => {
     try {
-      const endpoint = new URL(source.url);
-      endpoint.searchParams.set(source.queryParam || "q", query);
-
-      const response = await fetch(endpoint, {
-        headers: { accept: "application/json", ...(source.headers || {}) },
-        signal: AbortSignal.timeout(TIMEOUT_MS)
-      });
-      if (!response.ok) throw new Error("HTTP " + response.status);
-
-      const body = await response.json();
-      const rows = Array.isArray(body) ? body : (body.results || body.items || []);
+      let rows = [];
+      if ((source.protocol || "json") === "stremio") {
+        if (!media.imdbId) throw new Error("Для этого фильма нет IMDb ID, поэтому Stremio-поиск недоступен");
+        const base = source.url.replace(/\\/+$/, "").replace(/\\/manifest\\.json$/i, "");
+        const mediaType = media.type === "Сериал" || media.type === "series" ? "series" : "movie";
+        const endpoint = new URL(base + "/stream/" + mediaType + "/" + encodeURIComponent(media.imdbId) + ".json");
+        const response = await fetch(endpoint, {
+          headers: { accept: "application/json", ...(source.headers || {}) },
+          signal: AbortSignal.timeout(TIMEOUT_MS)
+        });
+        if (!response.ok) throw new Error("HTTP " + response.status);
+        const body = await response.json();
+        rows = Array.isArray(body.streams) ? body.streams : [];
+      } else {
+        const endpoint = new URL(source.url);
+        endpoint.searchParams.set(source.queryParam || "q", query);
+        const response = await fetch(endpoint, {
+          headers: { accept: "application/json", ...(source.headers || {}) },
+          signal: AbortSignal.timeout(TIMEOUT_MS)
+        });
+        if (!response.ok) throw new Error("HTTP " + response.status);
+        const body = await response.json();
+        rows = Array.isArray(body) ? body : (body.results || body.items || []);
+      }
       if (!Array.isArray(rows)) throw new Error("Неподдерживаемый JSON-формат");
-
       return {
-        items: rows.filter(item => item && typeof item.url === "string" && /^https?:\/\//i.test(item.url))
+        items: rows.filter(item => item && typeof item.url === "string" && /^https?:\\/\\//i.test(item.url))
           .map(item => ({
             source: source.name,
-            title: item.title || item.name || "Без названия",
+            title: item.title || item.name || item.description || "Без названия",
             url: item.url,
             type: item.type === "iframe" ? "iframe" : "video",
             rating: item.rating ?? null,
-            quality: item.quality || null,
+            quality: item.quality || (Array.isArray(item.behaviorHints?.filename) ? item.behaviorHints.filename[0] : item.behaviorHints?.filename) || null,
             voice: item.voice || null
           })),
         error: null
@@ -142,18 +154,17 @@ async function searchConfiguredAdapters(query) {
       return { items: [], error: source.name + ": " + error.message };
     }
   }));
-
   return {
     items: responses.flatMap(result => result.items),
     errors: responses.map(result => result.error).filter(Boolean)
   };
 }
 
-async function searchSources(query) {
+async function searchSources(query, media = {}) {
   const [archive, configured] = await Promise.all([
     searchInternetArchive(query).then(items => ({ items, error: null }))
       .catch(error => ({ items: [], error: "Internet Archive: " + error.message })),
-    searchConfiguredAdapters(query)
+    searchConfiguredAdapters(query, media)
   ]);
 
   const errors = [...configured.errors];
@@ -318,7 +329,8 @@ const server = http.createServer(async (req, res) => {
     const query = (url.searchParams.get("query") || "").trim();
     if (!query) return send(res, 400, { error: "query_required" });
     try {
-      return send(res, 200, await cached("sources:search:" + query.toLowerCase(), 60 * 1000, () => searchSources(query)));
+      const media = { imdbId: (url.searchParams.get("imdbId") || "").trim(), type: (url.searchParams.get("type") || "").trim() };
+      return send(res, 200, await cached("sources:search:" + query.toLowerCase() + ":" + media.imdbId + ":" + media.type, 60 * 1000, () => searchSources(query, media)));
     } catch (error) {
       return send(res, 502, { error: "sources_unavailable", message: error.message });
     }
