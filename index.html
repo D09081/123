@@ -113,8 +113,7 @@ function playDirect(){let u=$("playUrl").value.trim();if(!/^https?:\/\//i.test(u
 function closeModal(){$("modal").classList.remove("open")}
 $("modal").onclick=e=>{if(e.target===$("modal"))closeModal()};
 function toggleFav(id){favorites=favorites.includes(id)?favorites.filter(x=>x!==id):[...favorites,id];localStorage.setItem("cos_fav",JSON.stringify(favorites));renderFav();remoteDetails(id)}
-function renderSources(){$("sourceList").innerHTML=providers.map(n=>'<div class="source"><span class="dot" style="background:'+(n==="Internet Archive"?"#39d9ff":"#e7aa49")+'"></span><b>'+n+'</b><span class="badge">'+(n==="Internet Archive"?"ПОИСК БЕЗ КЛЮЧА · ОТКРЫТЫЕ ПРАВА":n==="Stremio Add-ons"?"ПОДКЛЮЧЕНИЕ ЧЕРЕЗ SOURCE_ADAPTERS":"ПОЛЬЗОВАТЕЛЬСКИЙ JSON API")+'</span></div>').join("");$("customSources").innerHTML=custom.map((s,i)=>'<div class="source"><span class="dot"></span><b>'+esc(s.name)+'</b><span class="badge">JSON API</span><button class="chip" onclick="removeSource('+i+')">Удалить</button></div>').join("")}
-$("addSource").onclick=()=>{let name=$("sourceName").value.trim(),url=$("sourceUrl").value.trim();if(!name||!/^https?:\/\//i.test(url)){alert("Введите название и корректный URL");return}custom.push({name,url});localStorage.setItem("cos_sources",JSON.stringify(custom));$("sourceName").value="";$("sourceUrl").value="";renderSources()};
+function renderSources(){$("sourceList").innerHTML=providers.map(n=>'<div class="source"><span class="dot" style="background:#39d9ff"></span><b>'+n+'</b><span class="badge">ПОИСК БЕЗ КЛЮЧА · ОТКРЫТЫЕ ПРАВА</span></div>').join("")}
 
 async function searchAdapterResults(q, media={}){
  if(!q)return {items:[],errors:["Введите название фильма или сериала."]};
@@ -170,7 +169,7 @@ function playAdapterResult(id){
  $("modal").classList.add("open");
 }
 $("searchAdapters").onclick=searchAdapters;
-$("copyShowyUrl")?.addEventListener("click",async()=>{try{await navigator.clipboard.writeText("https://showy.online/m.js");$("showyCopyStatus").textContent="Адрес Showy скопирован. Добавляйте его в расширениях Lampa только если доверяете источнику."}catch(e){$("showyCopyStatus").textContent="Не удалось скопировать автоматически. Адрес: https://showy.online/m.js"}});
+
 $("adapterQuery").addEventListener("keydown",e=>{if(e.key==="Enter")searchAdapters()});
 
 function removeSource(i){custom.splice(i,1);localStorage.setItem("cos_sources",JSON.stringify(custom));renderSources()}
@@ -178,10 +177,7 @@ $("exportData").onclick=()=>{let blob=new Blob([JSON.stringify({favorites,custom
 $("resetData").onclick=()=>{if(confirm("Удалить избранное и пользовательские источники?")){favorites=[];custom=[];localStorage.removeItem("cos_fav");localStorage.removeItem("cos_sources");renderSources();alert("Настройки сброшены")}};
 document.addEventListener("keydown",e=>{if(e.key==="Escape")closeModal();if(e.key==="Backspace"&&document.activeElement!==$("searchTop"))closeModal()});
 renderHome();renderCatalog();go("home");loadCatalog();
-const lampaFrame=document.getElementById("lampaFrame");
-document.getElementById("openLampaTab").onclick=()=>window.open("https://yumata.github.io/lampa/","_blank","noopener");
-document.getElementById("reloadLampa").onclick=()=>{lampaFrame.src="https://yumata.github.io/lampa/";document.getElementById("lampaStatus").textContent="Повторная загрузка Lampa…"};
-lampaFrame.addEventListener("load",()=>{document.getElementById("lampaStatus").textContent="Страница Lampa загрузилась. Доступность каталога и источников проверяется внутри Lampa."});
+
 
 /* Cinema OS MVP completion layer */
 (function(){
