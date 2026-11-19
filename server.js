@@ -138,7 +138,7 @@ async function searchConfiguredAdapters(query, media = {}) {
       }
       if (!Array.isArray(rows)) throw new Error("Неподдерживаемый JSON-формат");
       return {
-        items: rows.filter(item => item && typeof item.url === "string" && /^https?:\\/\\//i.test(item.url))
+        items: rows.filter(item => item && typeof item.url === "string" && /^https?:\/\//i.test(item.url))
           .map(item => ({
             source: source.name,
             title: item.title || item.name || item.description || "Без названия",
