@@ -43,7 +43,7 @@ function renderFav(){let arr=movies.filter(m=>favorites.includes(m.id));$("favGr
 async function runSearch(q){
  q=q.trim();
  if(!q){$("searchStatus").textContent="Введите название фильма или сериала.";$("searchGrid").innerHTML="";return}
- $("searchStatus").textContent="Ищем в каталоге TMDB…";$("searchGrid").innerHTML='<div class="empty">Загрузка…</div>';
+ $("searchStatus").textContent="Ищем в каталоге Cinemeta…";$("searchGrid").innerHTML='<div class="empty">Загрузка…</div>';
  try{
   const response=await fetch("/api/catalog/search?query="+encodeURIComponent(q),{headers:{accept:"application/json"}});
   const data=await response.json();
@@ -53,7 +53,7 @@ async function runSearch(q){
   $("searchGrid").innerHTML=remoteResults.length?remoteResults.map(card).join(""):'<div class="empty">Ничего не найдено.</div>';
   bindRemoteCards($("searchGrid"));
  }catch(e){
-  $("searchStatus").textContent="Поиск TMDB пока не подключён: "+e.message;
+  $("searchStatus").textContent="Каталог Cinemeta временно недоступен: "+e.message;
   $("searchGrid").innerHTML='<div class="empty">Сервис каталога временно недоступен. Попробуйте позже.</div>';
  }
 }
@@ -120,12 +120,13 @@ async function searchAdapters(){
  $("adapterResults").innerHTML=(r.items.length?r.items.map(x=>'<div class="source"><span class="dot" style="background:#39d9ff"></span><div style="min-width:0;flex:1"><b>'+esc(x.title)+'</b><div class="muted">'+esc(x.source)+' · '+esc(x.quality||"качество не указано")+' · '+esc(x.voice||"озвучка не указана")+'</div></div><button class="primary" onclick="playAdapterResult('+x.id+')">Смотреть</button></div>').join(""):'<div class="empty">Варианты не найдены.</div>')+(r.errors.length?'<p class="muted">'+r.errors.map(esc).join("<br>")+'</p>':"");
 }
 function playAdapterResult(id){
- const x=(window.__cosAdapterResults||[]).find(v=>v.id===id);if(!x)return;
+ const x=(window.__cosAdapterResults||[]).find(v=>v.id===id);if(!x||!/^https?:\\/\\//i.test(x.url))return;
+ const external='<p class="muted">Если встроенное воспроизведение не поддерживается источником или телевизором, откройте страницу источника отдельно.</p><a class="primary" style="display:inline-block;text-decoration:none" href="'+esc(x.url)+'" target="_blank" rel="noopener">Открыть источник отдельно ↗</a>';
  if(x.type==="iframe"){
-  $("dialog").innerHTML='<button class="close" onclick="closeModal()">Закрыть ✕</button><h2>'+esc(x.title)+'</h2><iframe class="player" src="'+esc(x.url)+'" allow="autoplay; fullscreen" allowfullscreen></iframe><p class="muted">Встраивание может быть запрещено самим сайтом.</p>';
+  $("dialog").innerHTML='<button class="close" onclick="closeModal()">Закрыть ✕</button><h2>'+esc(x.title)+'</h2><iframe class="player" src="'+esc(x.url)+'" allow="autoplay; fullscreen" allowfullscreen></iframe>'+external;
  }else{
-  $("dialog").innerHTML='<button class="close" onclick="closeModal()">Закрыть ✕</button><h2>'+esc(x.title)+'</h2><video id="video" class="player" controls autoplay></video><p class="muted">Источник: '+esc(x.source)+' · '+esc(x.quality||"качество не указано")+'</p>';
-  $("video").src=x.url;$("video").play().catch(()=>{});
+  $("dialog").innerHTML='<button class="close" onclick="closeModal()">Закрыть ✕</button><h2>'+esc(x.title)+'</h2><video id="video" class="player" controls autoplay></video><p class="muted">Источник: '+esc(x.source)+' · '+esc(x.quality||"качество не указано")+'</p>'+external;
+  const v=$("video");v.src=x.url;v.play().catch(()=>{});
  }
  $("modal").classList.add("open");
 }
