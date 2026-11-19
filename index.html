@@ -24,7 +24,7 @@ const movies=[];
 const providers=["Internet Archive","VideoDB","HDRezka","Showy","KinoGo","TorrServe"];
 let remoteResults=[],catalogItems=[];let filter="Все",custom=JSON.parse(localStorage.getItem("cos_sources")||"[]"),favorites=JSON.parse(localStorage.getItem("cos_fav")||"[]");
 const $=id=>document.getElementById(id);
-function go(page){document.querySelectorAll(".page").forEach(x=>x.classList.toggle("active",x.id===page));document.querySelectorAll(".nav button").forEach(x=>x.classList.toggle("active",x.dataset.page===page));$("pageTitle").textContent=({home:"Главная",catalog:"Каталог",search:"Поиск",favorites:"Избранное",sources:"Источники",settings:"Настройки"})[page];if(page==="favorites")renderFav();if(page==="sources")renderSources();if(page==="catalog")renderCatalog();if(page==="home")renderHome();if(page==="search"&&!$("searchTop").value.trim())$("searchStatus").textContent="Введите название фильма или сериала.";$("searchTop").style.display=page==="search"||page==="catalog"||page==="home"?"block":"none";}
+function go(page){document.querySelectorAll(".page").forEach(x=>x.classList.toggle("active",x.id===page));document.querySelectorAll(".nav button").forEach(x=>x.classList.toggle("active",x.dataset.page===page));$("pageTitle").textContent=({home:"Главная",catalog:"Каталог",search:"Поиск",favorites:"Избранное",sources:"Источники",settings:"Настройки"})[page];if(page==="favorites")renderFav();if(page==="sources")renderSources();if(page==="catalog"){renderCatalog();if(!catalogItems.length)loadCatalog()}if(page==="home"){renderHome();if(!catalogItems.length)loadCatalog();}if(page==="search"&&!$("searchTop").value.trim())$("searchStatus").textContent="Введите название фильма или сериала.";$("searchTop").style.display=page==="search"||page==="catalog"||page==="home"?"block":"none";}
 document.querySelectorAll(".nav button").forEach(b=>b.onclick=()=>go(b.dataset.page));
 function esc(s){return String(s??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]))}
 function card(m){let art=m.poster?'<img src="'+esc(m.poster)+'" alt="" style="width:100%;height:190px;object-fit:cover">':'<div class="art" style="--a:'+(m.a||'#153f62')+';--b:'+(m.b||'#522b76')+'">'+esc(m.title)+'</div>';let rating=m.rating!=null?' · ★ '+m.rating+(m.ratingSource?' '+m.ratingSource:''):' · нет оценки';return '<button class="poster" data-id="'+m.id+'">'+art+'<div class="poster-info"><b>'+esc(m.title)+'</b><small>'+esc(m.year||'')+' · '+esc(m.type||'')+rating+'</small></div></button>'}
@@ -123,7 +123,7 @@ async function searchAdapterResults(q){
    if(!response.ok)throw new Error("HTTP "+response.status);
    const data=await response.json();
    const rows=Array.isArray(data)?data:(Array.isArray(data.results)?data.results:(Array.isArray(data.items)?data.items:[]));
-   rows.forEach(x=>{if(x&&typeof x.url==="string"&&/^https?:\\/\\//i.test(x.url))all.push({source:s.name,title:x.title||x.name||"Без названия",url:x.url,type:x.type==="iframe"?"iframe":"video",rating:x.rating,quality:x.quality,voice:x.voice,id:all.length})});
+   rows.forEach(x=>{if(x&&typeof x.url==="string"&&/^https?:\/\//i.test(x.url))all.push({source:s.name,title:x.title||x.name||"Без названия",url:x.url,type:x.type==="iframe"?"iframe":"video",rating:x.rating,quality:x.quality,voice:x.voice,id:all.length})});
   }catch(e){errors.push(s.name+": "+e.message+" (возможен CORS или несовместимый формат)")}
  }
  if(!all.length&&!errors.length)errors.push("Не найдено доступных видео с открытыми правами. Попробуйте оригинальное название или другой фильм.");
@@ -142,7 +142,7 @@ async function searchAdapters(){
  $("adapterResults").innerHTML=(r.items.length?r.items.map(x=>'<div class="source"><span class="dot" style="background:#39d9ff"></span><div style="min-width:0;flex:1"><b>'+esc(x.title)+'</b><div class="muted">'+esc(x.source)+' · '+esc(x.quality||"качество не указано")+' · '+esc(x.voice||"озвучка не указана")+'</div></div><button class="primary" onclick="playAdapterResult('+x.id+')">Смотреть</button></div>').join(""):'<div class="empty">Варианты не найдены.</div>')+(r.errors.length?'<p class="muted">'+r.errors.map(esc).join("<br>")+'</p>':"");
 }
 function playAdapterResult(id){
- const x=(window.__cosAdapterResults||[]).find(v=>v.id===id);if(!x||!/^https?:\\/\\//i.test(x.url))return;
+ const x=(window.__cosAdapterResults||[]).find(v=>v.id===id);if(!x||!/^https?:\/\//i.test(x.url))return;
  const external='<p class="muted">Если встроенное воспроизведение не поддерживается источником или телевизором, откройте страницу источника отдельно.</p><a class="primary" style="display:inline-block;text-decoration:none" href="'+esc(x.url)+'" target="_blank" rel="noopener">Открыть источник отдельно ↗</a>';
  if(x.type==="iframe"){
   $("dialog").innerHTML='<button class="close" onclick="closeModal()">Закрыть ✕</button><h2>'+esc(x.title)+'</h2><iframe class="player" src="'+esc(x.url)+'" allow="autoplay; fullscreen" allowfullscreen></iframe>'+external;
@@ -159,7 +159,7 @@ function removeSource(i){custom.splice(i,1);localStorage.setItem("cos_sources",J
 $("exportData").onclick=()=>{let blob=new Blob([JSON.stringify({favorites,custom},null,2)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="cinema-os-settings.json";a.click();URL.revokeObjectURL(a.href)};
 $("resetData").onclick=()=>{if(confirm("Удалить избранное и пользовательские источники?")){favorites=[];custom=[];localStorage.removeItem("cos_fav");localStorage.removeItem("cos_sources");renderSources();alert("Настройки сброшены")}};
 document.addEventListener("keydown",e=>{if(e.key==="Escape")closeModal();if(e.key==="Backspace"&&document.activeElement!==$("searchTop"))closeModal()});
-renderHome();renderCatalog();go("home");
+renderHome();renderCatalog();go("home");loadCatalog();
 
 /* Cinema OS MVP completion layer */
 (function(){
