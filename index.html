@@ -12,7 +12,7 @@
 <button class="active" data-page="home">⌂ Главная</button><button data-page="catalog">▦ Каталог</button><button data-page="search">⌕ Поиск</button><button data-page="favorites">♡ Избранное</button><button data-page="sources">◈ Источники</button><button data-page="settings">⚙ Настройки</button></nav><div class="hint">CINEMA OS · MSX EDITION<br>Навигация: стрелки · OK · Back</div></aside>
 <main class="main"><header class="top"><h1 id="pageTitle">Главная</h1><input id="searchTop" class="search" placeholder="Найти фильм или сериал…" aria-label="Поиск"></header>
 <section class="page active" id="home"><div class="hero"><div class="hero-content"><div class="eyebrow">ВАШ ДОМАШНИЙ КИНОТЕАТР</div><h2>Всё кино<br>в одном месте</h2><p>Единая оболочка для каталога, избранного и подключаемых видеосервисов. Управляйте с пульта телевизора.</p><button class="primary" onclick="go('catalog')">Открыть каталог</button><button class="secondary" onclick="go('sources')">Источники</button></div></div><div class="section"><div class="section-head"><h2>Популярное</h2><span class="muted">Поиск по каталогу</span></div><div class="grid" id="homeGrid"><div class="empty">Найдите фильм или сериал через строку поиска выше.</div></div></div><div class="section"><h2>Быстрый доступ</h2><div class="toolbar"><button class="chip" onclick="go('catalog')">Каталог</button><button class="chip" onclick="go('favorites')">Избранное</button><button class="chip" onclick="go('sources')">Видеобалансеры</button><button class="chip" onclick="go('settings')">Настройки</button></div></div><div class="panel"><div class="eyebrow">CINEMA OS NATIVE ENGINE</div><h2>Смотреть прямо здесь</h2><p class="muted">Поиск открытых видеоисточников и воспроизведение совместимых потоков — внутри Cinema OS. Если сайт запрещает встраивание, откроем его отдельно.</p><button class="primary" onclick="go('sources')">Настроить источники</button></div></section>
-<section class="page" id="catalog"><div class="toolbar" id="filters"><button class="chip active" data-filter="Все">Все</button><button class="chip" data-filter="Фильм">Фильмы</button><button class="chip" data-filter="Сериал">Сериалы</button><button class="chip" data-filter="Анимация">Анимация</button></div><div class="grid" id="catalogGrid"><div class="empty">Каталог загружается через поиск. Введите название фильма или сериала в строку поиска.</div></div></section>
+<section class="page" id="catalog"><div class="toolbar" id="filters"><button class="chip active" data-filter="Все">Все</button><button class="chip" data-filter="Фильм">Фильмы</button><button class="chip" data-filter="Сериал">Сериалы</button><button class="chip" data-filter="Анимация">Анимация</button><button class="chip" data-filter="Российское">Российское</button><button class="chip" data-filter="Советское">Советское</button><button class="chip" data-filter="Мультфильмы">Мультфильмы</button></div><div class="grid" id="catalogGrid"><div class="empty">Каталог загружается через поиск. Введите название фильма или сериала в строку поиска.</div></div></section>
 <section class="page" id="search"><p class="muted" id="searchStatus">Поиск фильмов и сериалов без API-ключей. Рейтинги IMDb.</p><div class="grid" id="searchGrid"></div></section>
 <section class="page" id="favorites"><div class="grid" id="favGrid"></div></section>
 <section class="page" id="sources"><div class="panel"><h2>Видеобалансеры</h2><p class="muted">Internet Archive уже подключён без API-ключа: ищет видео с открытыми правами и прямыми MP4/WebM-потоками. Остальным источникам нужны отдельные совместимые адаптеры.</p><div id="sourceList"></div><p class="muted">Cinema OS работает самостоятельно. Плагины Lampa не загружаются. Для поиска поддерживаются совместимые JSON-адаптеры и прямые видеоссылки.</p></div><div class="panel"><h2>Подключённые JSON-адаптеры</h2><p class="muted">Адаптер должен принимать GET-запрос с параметром q и возвращать JSON-массив либо объект results. Каждый результат: title, url, type (video или iframe), rating (необязательно), quality (необязательно), voice (необязательно). Сервер адаптера должен разрешать CORS.</p><div class="row"><input class="field" id="adapterQuery" placeholder="Название фильма или сериала" style="flex:1"><button class="primary" id="searchAdapters">Искать в источниках</button></div><div id="adapterResults"></div></div><div class="panel"><h2>Добавить JSON-адаптер</h2><p class="muted">Укажите адрес JSON API, который поддерживает параметр ?q=поисковый_запрос. Это не URL страницы сайта и не адрес Lampa-плагина.</p><div class="row"><input class="field" id="sourceName" placeholder="Название источника"><input class="field" id="sourceUrl" placeholder="https://адрес/api/search" style="flex:1"><button class="primary" id="addSource">Добавить</button></div><div id="customSources"></div></div></section>
@@ -34,7 +34,7 @@ function renderHome(){
  bindRemoteCards($("homeGrid"));
 }
 function renderCatalog(){
- let list=catalogItems.filter(m=>filter==="Все"||(filter==="Анимация"?/animation|анимац/i.test(m.genre):m.type===filter));
+ let list=["Российское","Советское","Мультфильмы"].includes(filter)?catalogItems.filter(m=>m.collection===filter):catalogItems.filter(m=>filter==="Все"||(filter==="Анимация"?/animation|анимац/i.test(m.genre):m.type===filter));
  $("catalogGrid").innerHTML=list.length?list.map(card).join(""):'<div class="empty">В этой категории пока нет карточек.</div>';
  bindRemoteCards($("catalogGrid"));
 }
@@ -42,6 +42,18 @@ function renderFav(){
  let all=[...catalogItems,...remoteResults],arr=[...new Map(all.map(m=>[m.id,m])).values()].filter(m=>favorites.includes(m.id));
  $("favGrid").innerHTML=arr.length?arr.map(card).join(""):'<div class="empty">Здесь пока пусто. Добавляйте фильмы в избранное из карточки.</div>';
  bindRemoteCards($("favGrid"));
+}
+async function loadRussianCatalog(){
+ $("catalogGrid").innerHTML='<div class="empty">Загружаем российские фильмы, сериалы и мультфильмы…</div>';
+ try{
+  const response=await fetch("/api/catalog/russian",{headers:{accept:"application/json"}});
+  const data=await response.json();
+  if(!response.ok)throw new Error(data.message||("HTTP "+response.status));
+  const mapped=(data.items||[]).map((x,i)=>({id:"cinemeta_"+(x.id||i),title:x.title||"Без названия",year:x.year||"",type:x.type||"Фильм",genre:x.genre||"",desc:x.desc||"",poster:x.poster||"",rating:typeof x.rating==="number"?x.rating:null,ratingSource:"IMDb",imdbId:x.imdbId,collection:x.collection||""}));
+  const byId=new Map(catalogItems.map(x=>[x.id,x]));mapped.forEach(x=>byId.set(x.id,x));catalogItems=[...byId.values()];
+  renderCatalog();
+  if(data.warnings?.length)console.warn("Russian collection warnings",data.warnings);
+ }catch(e){$("catalogGrid").innerHTML='<div class="empty">Не удалось загрузить подборки: '+esc(e.message)+'</div>'}
 }
 async function loadCatalog(){
  if(catalogItems.length){renderHome();renderCatalog();return}
@@ -91,7 +103,7 @@ function remoteDetails(id){
  $("modal").classList.add("open");
 }
 $("searchTop").oninput=e=>{if(!$("search").classList.contains("active"))go("search");clearTimeout(searchTimer);const q=e.target.value;searchTimer=setTimeout(()=>runSearch(q),350)};
-$("filters").onclick=e=>{let b=e.target.closest("[data-filter]");if(!b)return;filter=b.dataset.filter;document.querySelectorAll("#filters .chip").forEach(x=>x.classList.toggle("active",x===b));renderCatalog()};
+$("filters").onclick=e=>{let b=e.target.closest("[data-filter]");if(!b)return;filter=b.dataset.filter;document.querySelectorAll("#filters .chip").forEach(x=>x.classList.toggle("active",x===b));if(["Российское","Советское","Мультфильмы"].includes(filter)&&!catalogItems.some(x=>x.collection===filter)){loadRussianCatalog();return}renderCatalog()};
 function openPlayer(){ $("dialog").innerHTML='<button class="close" onclick="closeModal()">Закрыть ✕</button><h2>Воспроизведение</h2><p class="muted">Вставьте прямую ссылку на видеофайл или поддерживаемый поток.</p><input id="playUrl" class="field" style="width:100%" placeholder="https://example.com/video.mp4"><div class="row" style="margin:12px 0"><button class="primary" onclick="playDirect()">Запустить</button></div><video id="video" class="player" controls autoplay></video><p class="muted">Поддержка зависит от формата и возможностей браузера MSX/webOS.</p>'}
 function playDirect(){let u=$("playUrl").value.trim();if(!/^https?:\/\//i.test(u)){alert("Укажите корректный http(s) URL");return}let v=$("video");v.src=u;v.play().catch(()=>alert("Не удалось запустить поток в этом браузере."))}
 
