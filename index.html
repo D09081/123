@@ -160,4 +160,105 @@ $("exportData").onclick=()=>{let blob=new Blob([JSON.stringify({favorites,custom
 $("resetData").onclick=()=>{if(confirm("Удалить избранное и пользовательские источники?")){favorites=[];custom=[];localStorage.removeItem("cos_fav");localStorage.removeItem("cos_sources");renderSources();alert("Настройки сброшены")}};
 document.addEventListener("keydown",e=>{if(e.key==="Escape")closeModal();if(e.key==="Backspace"&&document.activeElement!==$("searchTop"))closeModal()});
 renderHome();renderCatalog();go("home");
+
+/* Cinema OS MVP completion layer */
+(function(){
+  const HISTORY_KEY="cos_history_v1", FAV_ITEMS_KEY="cos_fav_items_v1";
+  let historyItems=[];
+  try{historyItems=JSON.parse(localStorage.getItem(HISTORY_KEY)||"[]")}catch(_){historyItems=[]}
+  let favItems=[];
+  try{favItems=JSON.parse(localStorage.getItem(FAV_ITEMS_KEY)||"[]")}catch(_){favItems=[]}
+
+  const style=document.createElement("style");
+  style.textContent=".poster img{display:block}.poster:focus-visible,button:focus-visible,input:focus-visible{outline:3px solid var(--cyan);outline-offset:2px}.history-meta{font-size:12px;color:var(--muted);margin-top:5px}.progress-track{height:4px;background:#263650;border-radius:9px;margin-top:8px;overflow:hidden}.progress-track i{display:block;height:100%;background:var(--cyan)}.mini-action{border:1px solid var(--line);background:#172238;color:#fff;border-radius:9px;padding:8px 12px}";
+  document.head.appendChild(style);
+
+  const home=$("home");
+  if(home&&!$("historySection")){
+    home.insertAdjacentHTML("beforeend",'<div class="section" id="historySection"><div class="section-head"><h2>Продолжить просмотр</h2><button class="chip" id="clearHistory">Очистить</button></div><div class="grid" id="historyGrid"><div class="empty">Здесь появятся запущенные видео.</div></div></div>');
+  }
+  function saveHistory(){localStorage.setItem(HISTORY_KEY,JSON.stringify(historyItems.slice(0,30)))}
+  function saveFavItems(){localStorage.setItem(FAV_ITEMS_KEY,JSON.stringify(favItems))}
+  function recordHistory(item,url){
+    if(!url)return;
+    const id=String(url);
+    const old=historyItems.find(x=>x.id===id);
+    const entry={id,url,title:item?.title||"Видео",poster:item?.poster||"",type:item?.type||"Видео",progress:old?.progress||0,duration:old?.duration||0,updated:Date.now()};
+    historyItems=[entry,...historyItems.filter(x=>x.id!==id)].slice(0,30);saveHistory();renderHistory();
+  }
+  function renderHistory(){
+    const root=$("historyGrid");if(!root)return;
+    root.innerHTML=historyItems.length?historyItems.slice(0,8).map((x,i)=>'<button class="poster" data-history="'+i+'">'+(x.poster?'<img src="'+esc(x.poster)+'" alt="" style="width:100%;height:190px;object-fit:cover">':'<div class="art" style="--a:#153f62;--b:#522b76">▶</div>')+'<div class="poster-info"><b>'+esc(x.title)+'</b><div class="history-meta">'+(x.progress>0&&x.duration>0?Math.round(x.progress/x.duration*100)+"% просмотрено":"Недавно запущено")+'</div>'+(x.duration>0?'<div class="progress-track"><i style="width:'+Math.min(100,Math.round(x.progress/x.duration*100))+'%"></i></div>':'')+'</div></button>').join(""):'<div class="empty">Здесь появятся запущенные видео. История хранится на этом устройстве.</div>';
+    root.querySelectorAll("[data-history]").forEach(b=>b.onclick=()=>resumeHistory(Number(b.dataset.history)));
+  }
+  function resumeHistory(index){
+    const x=historyItems[index];if(!x)return;
+    $("dialog").innerHTML='<button class="close" onclick="closeModal()">Закрыть ✕</button><h2>'+esc(x.title)+'</h2><video id="video" class="player" controls autoplay></video><p class="muted">Продолжение с сохранённой позиции, если формат поддерживается телевизором.</p>';
+    $("modal").classList.add("open");
+    const v=$("video");v.src=x.url;
+    v.addEventListener("loadedmetadata",()=>{if(x.progress>5&&x.progress<v.duration-5)v.currentTime=x.progress});
+    v.addEventListener("timeupdate",()=>{x.progress=v.currentTime;x.duration=Number.isFinite(v.duration)?v.duration:0;x.updated=Date.now();saveHistory();});
+    v.play().catch(()=>{});
+  }
+  window.renderHistory=renderHistory;
+  window.renderFav=function(){
+    const all=[...favItems,...catalogItems,...remoteResults];
+    const unique=[...new Map(all.map(m=>[String(m.id),m])).values()];
+    const arr=unique.filter(m=>favorites.includes(m.id));
+    $("favGrid").innerHTML=arr.length?arr.map(card).join(""):'<div class="empty">Здесь пока пусто. Добавляйте фильмы в избранное из карточки.</div>';
+    bindRemoteCards($("favGrid"));
+  };
+  window.toggleFav=function(id){
+    const all=[...catalogItems,...remoteResults];
+    const m=all.find(x=>String(x.id)===String(id));
+    if(m){
+      favItems=[m,...favItems.filter(x=>String(x.id)!==String(id))];
+      if(!favorites.includes(id))favorites.push(id);else favorites=favorites.filter(x=>String(x)!==String(id));
+      if(!favorites.includes(id))favItems=favItems.filter(x=>String(x.id)!==String(id));
+      saveFavItems();localStorage.setItem("cos_fav",JSON.stringify(favorites));
+    }
+    renderFav();
+    if(m)remoteDetails(id);
+  };
+  window.playDirect=function(){
+    const u=$("playUrl")?.value.trim();
+    if(!/^https?:\/\//i.test(u||"")){alert("Укажите корректную ссылку http(s) на видеофайл.");return}
+    const m=window.__cosCurrentMovie||{title:"Прямое видео"};
+    recordHistory(m,u);
+    const v=$("video");v.src=u;
+    v.addEventListener("timeupdate",()=>{const h=historyItems.find(x=>x.id===u);if(h){h.progress=v.currentTime;h.duration=Number.isFinite(v.duration)?v.duration:0;saveHistory()}});
+    v.play().catch(()=>alert("Телевизор не смог запустить этот поток. Проверьте ссылку и формат видео."));
+  };
+  window.playAdapterResult=function(id){
+    const x=(window.__cosAdapterResults||[]).find(v=>v.id===id);if(!x||!/^https?:\/\//i.test(x.url))return;
+    recordHistory({title:x.title,poster:window.__cosCurrentMovie?.poster||"",type:"Видео"},x.url);
+    const external='<p class="muted">Если источник запрещает встраивание или формат не поддерживается LG webOS, откройте его отдельно.</p><a class="primary" style="display:inline-block;text-decoration:none" href="'+esc(x.url)+'" target="_blank" rel="noopener">Открыть источник отдельно ↗</a>';
+    if(x.type==="iframe"){
+      $("dialog").innerHTML='<button class="close" onclick="closeModal()">Закрыть ✕</button><h2>'+esc(x.title)+'</h2><iframe class="player" src="'+esc(x.url)+'" allow="autoplay; fullscreen" allowfullscreen></iframe>'+external;
+    }else{
+      $("dialog").innerHTML='<button class="close" onclick="closeModal()">Закрыть ✕</button><h2>'+esc(x.title)+'</h2><video id="video" class="player" controls autoplay></video><p class="muted">Источник: '+esc(x.source)+' · '+esc(x.quality||"качество не указано")+'</p>'+external;
+      const v=$("video");v.src=x.url;
+      const h=historyItems.find(y=>y.id===x.url);
+      v.addEventListener("loadedmetadata",()=>{if(h&&h.progress>5&&h.progress<v.duration-5)v.currentTime=h.progress});
+      v.addEventListener("timeupdate",()=>{if(h){h.progress=v.currentTime;h.duration=Number.isFinite(v.duration)?v.duration:0;h.updated=Date.now();saveHistory();renderHistory()}});
+      v.play().catch(()=>{});
+    }
+    $("modal").classList.add("open");
+  };
+  const oldReset=$("resetData")?.onclick;
+  if($("resetData"))$("resetData").onclick=()=>{if(confirm("Удалить избранное, источники и историю просмотров?")){favorites=[];favItems=[];historyItems=[];custom=[];["cos_fav","cos_fav_items_v1","cos_sources","cos_history_v1"].forEach(k=>localStorage.removeItem(k));renderFav();renderSources();renderHistory();alert("Локальные данные удалены.")}};
+  $("clearHistory")?.addEventListener("click",()=>{if(confirm("Очистить историю просмотров на этом устройстве?")){historyItems=[];saveHistory();renderHistory()}});
+  renderHistory();renderFav();
+
+  // TV remote navigation: arrows move focus, OK activates, Back closes overlays.
+  document.addEventListener("keydown",e=>{
+    if($("modal")?.classList.contains("open")){if(e.key==="Escape"||e.key==="Backspace"||e.keyCode===461){closeModal();e.preventDefault()}return}
+    if(["ArrowRight","ArrowDown","ArrowLeft","ArrowUp"].includes(e.key)&&document.activeElement?.tagName!=="INPUT"){
+      const nodes=[...document.querySelectorAll("button:not([disabled]),a[href],input:not([disabled])")].filter(x=>x.offsetParent!==null);
+      const i=nodes.indexOf(document.activeElement);if(i>=0){const delta=(e.key==="ArrowRight"||e.key==="ArrowDown")?1:-1;nodes[(i+delta+nodes.length)%nodes.length]?.focus();e.preventDefault()}
+    }
+  });
+  $("searchTop").setAttribute("autocomplete","off");
+})();
+
 </script></body></html>
