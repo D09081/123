@@ -21,7 +21,7 @@
 <div class="modal" id="modal"><div class="dialog" id="dialog"></div></div>
 <script>
 const movies=[];
-const providers=["Internet Archive","Stremio Add-ons","JSON API"];
+const providers=["Internet Archive","Мосфильм (официально)","Stremio Add-ons","JSON API"];
 let remoteResults=[],catalogItems=[];let filter="Все",custom=JSON.parse(localStorage.getItem("cos_sources")||"[]"),favorites=JSON.parse(localStorage.getItem("cos_fav")||"[]");
 const $=id=>document.getElementById(id);
 function go(page){document.querySelectorAll(".page").forEach(x=>x.classList.toggle("active",x.id===page));document.querySelectorAll(".nav button").forEach(x=>x.classList.toggle("active",x.dataset.page===page));$("pageTitle").textContent=({home:"Главная",catalog:"Каталог",search:"Поиск",favorites:"Избранное",sources:"Источники",settings:"Настройки"})[page];if(page==="favorites")renderFav();if(page==="sources")renderSources();if(page==="catalog"){renderCatalog();if(!catalogItems.length)loadCatalog()}if(page==="home"){renderHome();if(!catalogItems.length)loadCatalog();}if(page==="search"&&!$("searchTop").value.trim())$("searchStatus").textContent="Введите название фильма или сериала.";$("searchTop").style.display=page==="search"||page==="catalog"||page==="home"?"block":"none";}
@@ -156,7 +156,9 @@ async function searchAdapters(){
 function playAdapterResult(id){
  const x=(window.__cosAdapterResults||[]).find(v=>v.id===id);if(!x||!/^https?:\/\//i.test(x.url))return;
  const external='<p class="muted">Если встроенное воспроизведение не поддерживается источником или телевизором, откройте страницу источника отдельно.</p><a class="primary" style="display:inline-block;text-decoration:none" href="'+esc(x.url)+'" target="_blank" rel="noopener">Открыть источник отдельно ↗</a>';
- if(x.type==="iframe"){
+ if(x.type==="link"){
+  $("dialog").innerHTML='<button class="close" onclick="closeModal()">Закрыть ✕</button><h2>'+esc(x.title)+'</h2><p class="muted">Официальный каталог правообладателя.</p>'+external;
+ }else if(x.type==="iframe"){
   $("dialog").innerHTML='<button class="close" onclick="closeModal()">Закрыть ✕</button><h2>'+esc(x.title)+'</h2><iframe class="player" src="'+esc(x.url)+'" allow="autoplay; fullscreen" allowfullscreen></iframe>'+external;
  }else{
   $("dialog").innerHTML='<button class="close" onclick="closeModal()">Закрыть ✕</button><h2>'+esc(x.title)+'</h2><video id="video" class="player" controls autoplay></video><p class="muted">Источник: '+esc(x.source)+' · '+esc(x.quality||"качество не указано")+'</p>'+external;
