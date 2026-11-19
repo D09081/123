@@ -60,7 +60,7 @@ async function runSearch(q){
 function bindRemoteCards(root){root.querySelectorAll(".poster").forEach(b=>b.onclick=()=>remoteDetails(b.dataset.id))}
 function remoteDetails(id){
  let m=remoteResults.find(x=>String(x.id)===String(id));if(!m)return;window.__cosCurrentMovie=m;
- $("dialog").innerHTML='<button class="close" onclick="closeModal()">Закрыть ✕</button><div class="eyebrow">'+esc(m.type)+' · '+esc(m.year)+'</div><h2>'+esc(m.title)+'</h2><p class="muted">'+esc(m.genre)+'</p><p>'+esc(m.desc||"Описание отсутствует.")+'</p><p><b>Кинопоиск: '+(m.rating==null?"нет оценки":"★ "+m.rating.toFixed(1)+"/10")+'</b></p><div class="row"><button class="primary" onclick="findMovieSources()">Найти варианты просмотра</button><button class="secondary" onclick="openPlayer()">Прямая ссылка</button></div>';
+ $("dialog").innerHTML='<button class="close" onclick="closeModal()">Закрыть ✕</button><div class="eyebrow">'+esc(m.type)+' · '+esc(m.year)+'</div><h2>'+esc(m.title)+'</h2><p class="muted">'+esc(m.genre)+'</p><p>'+esc(m.desc||"Описание отсутствует.")+'</p><p><b>TMDB: '+(m.rating==null?"нет оценки":"★ "+m.rating.toFixed(1)+"/10")+'</b> · '+(m.voteCount?m.voteCount.toLocaleString("ru-RU")+" голосов":"без голосов")+'</p><div class="row"><button class="primary" onclick="findMovieSources()">Найти варианты просмотра</button><button class="secondary" onclick="openPlayer()">Прямая ссылка</button></div>';
  $("modal").classList.add("open");
 }
 $("searchTop").oninput=e=>{if(!$("search").classList.contains("active"))go("search");runSearch(e.target.value)};
