@@ -15,7 +15,7 @@
 <section class="page" id="catalog"><div class="toolbar" id="filters"><button class="chip active" data-filter="Все">Все</button><button class="chip" data-filter="Фильм">Фильмы</button><button class="chip" data-filter="Сериал">Сериалы</button><button class="chip" data-filter="Анимация">Анимация</button></div><div class="grid" id="catalogGrid"></div></section>
 <section class="page" id="search"><p class="muted" id="searchStatus">Поиск по реальной базе Кинопоиска. Добавьте API-ключ в настройках.</p><div class="grid" id="searchGrid"></div></section>
 <section class="page" id="favorites"><div class="grid" id="favGrid"></div></section>
-<section class="page" id="sources"><div class="panel"><h2>Видеобалансеры</h2><p class="muted">Список подготовленных источников. Для реального поиска и воспроизведения каждому нужен совместимый адаптер API. Ничего не отмечено как подключённое без проверки.</p><div id="sourceList"></div></div><div class="panel"><h2>Добавить источник</h2><p class="muted">Можно указать URL собственного совместимого JSON-адаптера. Формат: массив объектов с полями title, url, type (video или iframe).</p><div class="row"><input class="field" id="sourceName" placeholder="Название источника"><input class="field" id="sourceUrl" placeholder="https://адрес/adapter.json" style="flex:1"><button class="primary" id="addSource">Добавить</button></div><div id="customSources"></div></div></section>
+<section class="page" id="sources"><div class="panel"><h2>Видеобалансеры</h2><p class="muted">Список подготовленных источников. Для реального поиска и воспроизведения каждому нужен совместимый адаптер API. Ничего не отмечено как подключённое без проверки.</p><div id="sourceList"></div><p class="muted">Сторонние плагины Online MOD и Showy написаны для Lampa и не запускаются напрямую в самостоятельной HTML-оболочке. Для них нужен отдельный совместимый адаптер или Lampa runtime.</p></div><div class="panel"><h2>Подключённые JSON-адаптеры</h2><p class="muted">Адаптер должен принимать GET-запрос с параметром q и возвращать JSON-массив либо объект results. Каждый результат: title, url, type (video или iframe), rating (необязательно), quality (необязательно), voice (необязательно). Сервер адаптера должен разрешать CORS.</p><div class="row"><input class="field" id="adapterQuery" placeholder="Название фильма или сериала" style="flex:1"><button class="primary" id="searchAdapters">Искать в источниках</button></div><div id="adapterResults"></div></div><div class="panel"><h2>Добавить JSON-адаптер</h2><p class="muted">Укажите адрес JSON API, который поддерживает параметр ?q=поисковый_запрос. Это не URL страницы сайта и не адрес Lampa-плагина.</p><div class="row"><input class="field" id="sourceName" placeholder="Название источника"><input class="field" id="sourceUrl" placeholder="https://адрес/api/search" style="flex:1"><button class="primary" id="addSource">Добавить</button></div><div id="customSources"></div></div></section>
 <section class="page" id="settings"><div class="panel"><h2>Настройки Cinema OS</h2><p class="muted">Данные избранного и пользовательских источников сохраняются в памяти браузера телевизора.</p><div class="row"><button class="chip" id="exportData">Экспорт настроек</button><button class="chip" id="resetData">Сбросить данные</button></div></div><div class="panel"><h2>API Кинопоиска</h2><p class="muted">Для реального поиска и рейтингов нужен ключ стороннего Kinopoisk.dev. Официального открытого API Кинопоиска для этого нет. Ключ хранится локально в браузере телевизора.</p><div class="row"><input class="field" id="kpKey" type="password" placeholder="API-ключ Kinopoisk.dev" style="flex:1"><button class="primary" id="saveKpKey">Сохранить</button><button class="chip" id="clearKpKey">Удалить</button></div><p><a href="https://kinopoiskdev.readme.io/" target="_blank" rel="noopener" style="color:var(--cyan)">Документация и получение ключа</a></p><p class="muted" id="kpKeyStatus"></p></div><div class="panel"><h2>О приложении</h2><p>Cinema OS MVP · самостоятельная веб-оболочка для MSX Player / LG webOS.</p><p class="muted">Текущая версия содержит рабочую навигацию, каталог-пример, поиск, карточки, избранное, настройки и запуск прямых видео-ссылок. Подключение коммерческих/сторонних каталогов требует отдельных адаптеров и законного доступа к их API.</p></div></section>
 <div class="footer">Cinema OS · MVP · Работает как статическое веб-приложение, без собственного сервера.</div></main></div>
 <div class="modal" id="modal"><div class="dialog" id="dialog"></div></div>
@@ -51,8 +51,45 @@ function playDirect(){let u=$("playUrl").value.trim();if(!/^https?:\/\//i.test(u
 function closeModal(){$("modal").classList.remove("open")}
 $("modal").onclick=e=>{if(e.target===$("modal"))closeModal()};
 function toggleFav(id){favorites=favorites.includes(id)?favorites.filter(x=>x!==id):[...favorites,id];localStorage.setItem("cos_fav",JSON.stringify(favorites));details(id)}
-function renderSources(){$("sourceList").innerHTML=providers.map(n=>'<div class="source"><span class="dot"></span><b>'+n+'</b><span class="badge">АДАПТЕР НЕ ПОДКЛЮЧЁН</span></div>').join("");$("customSources").innerHTML=custom.map((s,i)=>'<div class="source"><span class="dot"></span><b>'+s.name+'</b><span class="badge">URL СОХРАНЁН</span><button class="chip" onclick="removeSource('+i+')">Удалить</button></div>').join("")}
+function renderSources(){$("sourceList").innerHTML=providers.map(n=>'<div class="source"><span class="dot"></span><b>'+n+'</b><span class="badge">ТРЕБУЕТСЯ ОТДЕЛЬНЫЙ АДАПТЕР</span></div>').join("");$("customSources").innerHTML=custom.map((s,i)=>'<div class="source"><span class="dot"></span><b>'+esc(s.name)+'</b><span class="badge">JSON API</span><button class="chip" onclick="removeSource('+i+')">Удалить</button></div>').join("")}
 $("addSource").onclick=()=>{let name=$("sourceName").value.trim(),url=$("sourceUrl").value.trim();if(!name||!/^https?:\/\//i.test(url)){alert("Введите название и корректный URL");return}custom.push({name,url});localStorage.setItem("cos_sources",JSON.stringify(custom));$("sourceName").value="";$("sourceUrl").value="";renderSources()};
+
+async function searchAdapters(){
+ const q=$("adapterQuery").value.trim();
+ if(!q){$("adapterResults").innerHTML='<div class="empty">Введите название для поиска.</div>';return}
+ if(!custom.length){$("adapterResults").innerHTML='<div class="empty">Сначала добавьте совместимый JSON-адаптер. Сами адреса сайтов или Lampa-плагинов здесь не подойдут.</div>';return}
+ $("adapterResults").innerHTML='<div class="empty">Ищем в подключённых источниках…</div>';
+ let all=[],errors=[];
+ for(const s of custom){
+  try{
+   const u=new URL(s.url);u.searchParams.set("q",q);
+   const response=await fetch(u.toString(),{method:"GET",headers:{accept:"application/json"}});
+   if(!response.ok)throw new Error("HTTP "+response.status);
+   const data=await response.json();
+   const rows=Array.isArray(data)?data:(Array.isArray(data.results)?data.results:(Array.isArray(data.items)?data.items:[]));
+   rows.forEach((x,i)=>{
+    if(!x||!x.url||!/^https?:\/\//i.test(String(x.url)))return;
+    all.push({source:s.name,title:x.title||x.name||"Без названия",url:x.url,type:x.type||"video",rating:x.rating,quality:x.quality,voice:x.voice,id:all.length});
+   });
+  }catch(e){errors.push(s.name+": "+e.message+" (возможен CORS или несовместимый API)")}
+ }
+ if(!all.length){$("adapterResults").innerHTML='<div class="empty">Видео не найдены.'+(errors.length?'<br>'+errors.map(esc).join("<br>"):"")+'</div>';return}
+ $("adapterResults").innerHTML=all.map(x=>'<div class="source"><span class="dot" style="background:#39d9ff"></span><div style="min-width:0;flex:1"><b>'+esc(x.title)+'</b><div class="muted">'+esc(x.source)+' · '+esc(x.quality||"качество не указано")+' · '+esc(x.voice||"озвучка не указана")+(x.rating!=null?' · ★ '+esc(x.rating):' · рейтинг не предоставлен')+'</div></div><button class="primary" onclick="playAdapterResult('+x.id+')">Смотреть</button></div>').join("")+(errors.length?'<p class="muted">'+errors.map(esc).join("<br>")+'</p>':"");
+ window.__cosAdapterResults=all;
+}
+function playAdapterResult(id){
+ const x=(window.__cosAdapterResults||[]).find(v=>v.id===id);if(!x)return;
+ if(x.type==="iframe"){
+  $("dialog").innerHTML='<button class="close" onclick="closeModal()">Закрыть ✕</button><h2>'+esc(x.title)+'</h2><iframe class="player" src="'+esc(x.url)+'" allow="autoplay; fullscreen" allowfullscreen></iframe><p class="muted">Встраивание может быть запрещено самим сайтом.</p>';
+ }else{
+  $("dialog").innerHTML='<button class="close" onclick="closeModal()">Закрыть ✕</button><h2>'+esc(x.title)+'</h2><video id="video" class="player" controls autoplay></video><p class="muted">Источник: '+esc(x.source)+' · '+esc(x.quality||"качество не указано")+'</p>';
+  $("video").src=x.url;$("video").play().catch(()=>{});
+ }
+ $("modal").classList.add("open");
+}
+$("searchAdapters").onclick=searchAdapters;
+$("adapterQuery").addEventListener("keydown",e=>{if(e.key==="Enter")searchAdapters()});
+
 function removeSource(i){custom.splice(i,1);localStorage.setItem("cos_sources",JSON.stringify(custom));renderSources()}
 $("exportData").onclick=()=>{let blob=new Blob([JSON.stringify({favorites,custom},null,2)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="cinema-os-settings.json";a.click();URL.revokeObjectURL(a.href)};
 $("saveKpKey").onclick=()=>{kpKey=$("kpKey").value.trim();if(!kpKey){alert("Введите API-ключ");return}localStorage.setItem("cos_kp_key",kpKey);$("kpKeyStatus").textContent="Ключ сохранён локально."};$("clearKpKey").onclick=()=>{kpKey="";localStorage.removeItem("cos_kp_key");$("kpKey").value="";$("kpKeyStatus").textContent="Ключ удалён."};$("kpKey").value=kpKey;$("kpKeyStatus").textContent=kpKey?"Ключ сохранён на этом телевизоре.":"Ключ не добавлен.";$("resetData").onclick=()=>{if(confirm("Удалить избранное и пользовательские источники?")){favorites=[];custom=[];localStorage.removeItem("cos_fav");localStorage.removeItem("cos_sources");renderSources();alert("Настройки сброшены")}};
