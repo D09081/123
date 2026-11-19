@@ -47,7 +47,7 @@ const server = http.createServer(async (req, res) => {
     const query = (url.searchParams.get("query") || "").trim();
     if (!query) return send(res, 400, { error: "query_required" });
     const key = process.env.KINOPOISK_API_KEY;
-    if (!key) return send(res, 503, { error: "catalog_key_not_configured", message: "Set KINOPOISK_API_KEY in Railway variables." });
+    if (!key) return send(res, 503, { error: "catalog_key_not_configured", message: "Set KINOPOISK_API_KEY in Render environment variables." });
     try {
       const kp = new URL("https://api.kinopoisk.dev/v1.4/movie/search");
       kp.searchParams.set("page", "1"); kp.searchParams.set("limit", "30"); kp.searchParams.set("query", query);
