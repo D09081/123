@@ -48,7 +48,7 @@ async function runSearch(q){
   const response=await fetch("/api/catalog/search?query="+encodeURIComponent(q),{headers:{accept:"application/json"}});
   const data=await response.json();
   if(!response.ok)throw new Error(data.message||("HTTP "+response.status));
-  remoteResults=(data.items||[]).map((x,i)=>({id:"tmdb_"+(x.id||i),title:x.title||"Без названия",year:x.year||"",type:x.type||"Фильм",genre:x.genre||"",desc:x.desc||"",poster:x.poster||"",rating:typeof x.rating==="number"?x.rating:null,ratingSource:"IMDb",voteCount:x.voteCount||0,tmdbId:x.tmdbId,mediaType:x.mediaType}));
+  remoteResults=(data.items||[]).map((x,i)=>({id:"cinemeta_"+(x.id||i),title:x.title||"Без названия",year:x.year||"",type:x.type||"Фильм",genre:x.genre||"",desc:x.desc||"",poster:x.poster||"",rating:typeof x.rating==="number"?x.rating:null,ratingSource:"IMDb",imdbId:x.imdbId}));
   $("searchStatus").textContent="Cinemeta · найдено: "+remoteResults.length+". ★ — рейтинг IMDb.";
   $("searchGrid").innerHTML=remoteResults.length?remoteResults.map(card).join(""):'<div class="empty">Ничего не найдено.</div>';
   bindRemoteCards($("searchGrid"));
@@ -60,7 +60,7 @@ async function runSearch(q){
 function bindRemoteCards(root){root.querySelectorAll(".poster").forEach(b=>b.onclick=()=>remoteDetails(b.dataset.id))}
 function remoteDetails(id){
  let m=remoteResults.find(x=>String(x.id)===String(id));if(!m)return;window.__cosCurrentMovie=m;
- $("dialog").innerHTML='<button class="close" onclick="closeModal()">Закрыть ✕</button><div class="eyebrow">'+esc(m.type)+' · '+esc(m.year)+'</div><h2>'+esc(m.title)+'</h2><p class="muted">'+esc(m.genre)+'</p><p>'+esc(m.desc||"Описание отсутствует.")+'</p><p><b>IMDb: '+(m.rating==null?"нет оценки":"★ "+m.rating.toFixed(1)+"/10")+'</b> · '+(m.voteCount?m.voteCount.toLocaleString("ru-RU")+" голосов":"без голосов")+'</p><div class="row"><button class="primary" onclick="findMovieSources()">Найти варианты просмотра</button><button class="secondary" onclick="openPlayer()">Прямая ссылка</button></div>';
+ $("dialog").innerHTML='<button class="close" onclick="closeModal()">Закрыть ✕</button><div class="eyebrow">'+esc(m.type)+' · '+esc(m.year)+'</div><h2>'+esc(m.title)+'</h2><p class="muted">'+esc(m.genre)+'</p><p>'+esc(m.desc||"Описание отсутствует.")+'</p><p><b>IMDb: '+(m.rating==null?"нет оценки":"★ "+m.rating.toFixed(1)+"/10")+'</b></p><div class="row"><button class="primary" onclick="findMovieSources()">Найти варианты просмотра</button><button class="secondary" onclick="openPlayer()">Прямая ссылка</button></div>';
  $("modal").classList.add("open");
 }
 $("searchTop").oninput=e=>{if(!$("search").classList.contains("active"))go("search");runSearch(e.target.value)};
