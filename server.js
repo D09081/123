@@ -164,15 +164,24 @@ async function searchSources(query) {
 async function searchCatalog(query) {
   const encoded = encodeURIComponent(query);
   const types = ["movie", "series"];
-  const responses = await Promise.all(types.map(async type => {
+  const settled = await Promise.allSettled(types.map(async type => {
     const endpoint = "https://v3-cinemeta.strem.io/catalog/" + type + "/top/search=" + encoded + ".json";
     const response = await fetch(endpoint, {
       headers: { accept: "application/json" },
+      redirect: "follow",
       signal: AbortSignal.timeout(TIMEOUT_MS)
     });
-    if (!response.ok) throw new Error("Cinemeta " + type + " HTTP " + response.status);
-    return { type, body: await response.json() };
+    if (!response.ok) throw new Error("HTTP " + response.status);
+    const body = await response.json();
+    return { type, body };
   }));
+
+  const errors = [];
+  const responses = [];
+  settled.forEach((result, index) => {
+    if (result.status === "fulfilled") responses.push(result.value);
+    else errors.push((types[index] === "movie" ? "Фильмы" : "Сериалы") + ": " + result.reason.message);
+  });
 
   const items = responses.flatMap(({ type, body }) => (body.metas || []).map(item => ({
     id: item.imdb_id || item.id,
@@ -189,7 +198,13 @@ async function searchCatalog(query) {
     imdbId: item.imdb_id || item.id || null
   })));
 
-  return [...new Map(items.map(item => [item.id || (item.title + item.year), item])).values()];
+  const unique = [...new Map(items.map(item => [item.id || (item.title + item.year), item])).values()];
+  if (!unique.length && errors.length === types.length) {
+    const error = new Error(errors.join("; "));
+    error.details = errors;
+    throw error;
+  }
+  return { items: unique, warnings: errors };
 }
 
 const server = http.createServer(async (req, res) => {
@@ -204,8 +219,8 @@ const server = http.createServer(async (req, res) => {
     const query = (url.searchParams.get("query") || "").trim();
     if (!query) return send(res, 400, { error: "query_required" });
     try {
-      const items = await searchCatalog(query);
-      return send(res, 200, { provider: "Cinemeta", ratingSource: "IMDb", items });
+      const result = await searchCatalog(query);
+      return send(res, 200, { provider: "Cinemeta", ratingSource: "IMDb", items: result.items, warnings: result.warnings });
     } catch (error) {
       return send(res, 502, { error: "catalog_unavailable", provider: "Cinemeta", message: error.message });
     }
