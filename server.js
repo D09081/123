@@ -161,6 +161,46 @@ async function searchSources(query) {
   };
 }
 
+
+async function discoverCatalog() {
+  const types = ["movie", "series"];
+  const settled = await Promise.allSettled(types.map(async type => {
+    const endpoint = "https://v3-cinemeta.strem.io/catalog/" + type + "/top.json";
+    const response = await fetch(endpoint, {
+      headers: { accept: "application/json" },
+      redirect: "follow",
+      signal: AbortSignal.timeout(TIMEOUT_MS)
+    });
+    if (!response.ok) throw new Error("HTTP " + response.status);
+    return { type, body: await response.json() };
+  }));
+  const errors = [];
+  const items = [];
+  settled.forEach((result, index) => {
+    if (result.status !== "fulfilled") {
+      errors.push((types[index] === "movie" ? "Фильмы" : "Сериалы") + ": " + result.reason.message);
+      return;
+    }
+    const { type, body } = result.value;
+    (body.metas || []).forEach(item => items.push({
+      id: item.imdb_id || item.id,
+      title: item.name || item.title || "Без названия",
+      year: item.year || (item.releaseInfo || "").slice(0, 4),
+      type: type === "series" ? "Сериал" : "Фильм",
+      genre: Array.isArray(item.genres) ? item.genres.join(", ") : "",
+      desc: item.description || "",
+      poster: item.poster || "",
+      rating: typeof item.imdbRating === "number" ? item.imdbRating :
+        (item.imdbRating && !Number.isNaN(Number(item.imdbRating)) ? Number(item.imdbRating) : null),
+      ratingSource: "IMDb",
+      imdbId: item.imdb_id || item.id || null
+    }));
+  });
+  const unique = [...new Map(items.map(item => [item.id || (item.title + item.year), item])).values()];
+  if (!unique.length && errors.length === types.length) throw new Error(errors.join("; "));
+  return { items: unique, warnings: errors };
+}
+
 async function searchCatalog(query) {
   const encoded = encodeURIComponent(query);
   const types = ["movie", "series"];
@@ -213,6 +253,15 @@ const server = http.createServer(async (req, res) => {
 
   if (url.pathname === "/api/health") {
     return send(res, 200, { ok: true, app: "Cinema OS API", status: "running" });
+  }
+
+  if (url.pathname === "/api/catalog/discover" && req.method === "GET") {
+    try {
+      const result = await discoverCatalog();
+      return send(res, 200, { provider: "Cinemeta", ratingSource: "IMDb", items: result.items, warnings: result.warnings });
+    } catch (error) {
+      return send(res, 502, { error: "catalog_unavailable", provider: "Cinemeta", message: error.message });
+    }
   }
 
   if (url.pathname === "/api/catalog/search" && req.method === "GET") {
