@@ -82,7 +82,8 @@ const bootstrap = `
       return url !== 'https://showy.online/m.js' && url !== 'https://showy.online/m.js/';
     });
     var plugins = [
-      'https://nb557.github.io/plugins/online_mod.js'
+      'https://nb557.github.io/plugins/online_mod.js',
+      {url: location.origin + '/plugins/torrent-pro.js', status: 1, name: 'Torrent Pro'}
     ];
     plugins.forEach(function(url) {
       if (!list.some(function(item) {
@@ -95,7 +96,8 @@ const bootstrap = `
 `;
 // Weather widget intentionally removed from Cinema OS.
 
-// Install the design-free Torrent Pro functionality as a native Cinema OS extension.
+// Publish the design-free Torrent Pro plugin. Lampa loads it from its native
+// Settings > Extensions list, populated in the bootstrap above (localStorage "plugins").
 const torrentPluginSource = path.join(root, "plugins", "torrent-pro.js");
 if (!fs.existsSync(torrentPluginSource)) {
   throw new Error("Cinema OS Torrent Pro source is missing: " + torrentPluginSource);
@@ -103,9 +105,7 @@ if (!fs.existsSync(torrentPluginSource)) {
 const pluginOutputDir = path.join(output, "plugins");
 fs.mkdirSync(pluginOutputDir, { recursive: true });
 fs.copyFileSync(torrentPluginSource, path.join(pluginOutputDir, "torrent-pro.js"));
-if (!html.includes("CINEMA_OS_TORRENT_PRO")) {
-  html = html.replace('</body>', '<script id="CINEMA_OS_TORRENT_PRO" src="/plugins/torrent-pro.js"></script></body>');
-}
+// Do not inject a second script tag: Lampa's plugin loader owns loading and status.
 if (!html.includes('CINEMA_OS_SOURCE_BOOTSTRAP')) {
   html = html.replace(/<script>\s*window\.youtube_lazy_load = true/, '<script>\n        /* CINEMA_OS_SOURCE_BOOTSTRAP */\n        ' + bootstrap + '\n        window.youtube_lazy_load = true');
 }
