@@ -69,17 +69,20 @@ let html = fs.readFileSync(indexPath, 'utf8');
 if (!html.includes('CINEMA_OS_CYBER_SKIN')) {
   html = html.replace('</head>', '<style id="CINEMA_OS_CYBER_SKIN">' + cinemaCss + '</style></head>');
 }
-// Seed Showy as an enabled Lampa extension on first launch. Existing user plugin settings are preserved.
-// Showy exposes VideoDB and several other providers; its own Telegram authorization may be required.
+// Keep Showy out of Cinema OS, including installations where it was saved in Lampa's plugin list.
+// Our Torrent Pro extension is installed below as a native Cinema OS script.
 const bootstrap = `
 (function(){
   try {
     var current = localStorage.getItem('plugins');
     var list = current ? JSON.parse(current) : [];
     if (!Array.isArray(list)) list = [];
+    list = list.filter(function(item) {
+      var url = typeof item === 'string' ? item : item && item.url;
+      return url !== 'https://showy.online/m.js' && url !== 'https://showy.online/m.js/';
+    });
     var plugins = [
-      'https://nb557.github.io/plugins/online_mod.js',
-      'https://showy.online/m.js'
+      'https://nb557.github.io/plugins/online_mod.js'
     ];
     plugins.forEach(function(url) {
       if (!list.some(function(item) {
