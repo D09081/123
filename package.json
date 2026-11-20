@@ -3,6 +3,11 @@
   "version": "1.0.0",
   "private": true,
   "description": "Cinema OS web app and API backend",
-  "scripts": { "start": "node server.js" },
-  "engines": { "node": ">=20" }
+  "scripts": {
+    "start": "node server.js",
+    "postinstall": "node scripts/build-lampa.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
 }
