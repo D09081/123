@@ -69,35 +69,33 @@ let html = fs.readFileSync(indexPath, 'utf8');
 if (!html.includes('CINEMA_OS_CYBER_SKIN')) {
   html = html.replace('</head>', '<style id="CINEMA_OS_CYBER_SKIN">' + cinemaCss + '</style></head>');
 }
-// Keep Showy out of Cinema OS, including installations where it was saved in Lampa's plugin list.
-// Our Torrent Pro extension is installed below as a native Cinema OS script.
+// Keep the launcher stock: only the standalone Torrent Pro extension is registered.
 const bootstrap = `
 (function(){
   try {
     var current = localStorage.getItem('plugins');
     var list = current ? JSON.parse(current) : [];
     if (!Array.isArray(list)) list = [];
+    // Remove Cinema OS-added extensions only; leave unrelated user extensions untouched.
+    var remove = [
+      'https://showy.online/m.js', 'https://showy.online/m.js/',
+      'https://nb557.github.io/plugins/online_mod.js',
+      'https://bylampa.github.io/cinema.js',
+      'https://asimut.github.io/l/b.js',
+      location.origin + '/plugins/torrent-pro.js'
+    ];
     list = list.filter(function(item) {
       var url = typeof item === 'string' ? item : item && item.url;
-      return url !== 'https://showy.online/m.js' && url !== 'https://showy.online/m.js/';
+      return remove.indexOf(url) < 0;
     });
-    var plugins = [
-      'https://nb557.github.io/plugins/online_mod.js',
-      {url: location.origin + '/plugins/torrent-pro.js', status: 1, name: 'Torrent Pro'}
-    ];
-    plugins.forEach(function(url) {
-      if (!list.some(function(item) {
-        return (typeof item === 'string' ? item : item && item.url) === url;
-      })) list.push({url:url,status:1});
-    });
+    list.push({url: location.origin + '/plugins/torrent-pro.js', status: 1, name: 'Torrent Pro'});
     localStorage.setItem('plugins', JSON.stringify(list));
-  } catch(e) { console.warn('Cinema OS video sources bootstrap:', e); }
+  } catch(e) { console.warn('Torrent Pro extension bootstrap:', e); }
 })();
 `;
 // Weather widget intentionally removed from Cinema OS.
 
-// Publish the design-free Torrent Pro plugin. Lampa loads it from its native
-// Settings > Extensions list, populated in the bootstrap above (localStorage "plugins").
+// Publish the standalone Torrent Pro extension for Lampa's native Extensions list.
 const torrentPluginSource = path.join(root, "plugins", "torrent-pro.js");
 if (!fs.existsSync(torrentPluginSource)) {
   throw new Error("Cinema OS Torrent Pro source is missing: " + torrentPluginSource);
