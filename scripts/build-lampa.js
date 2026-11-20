@@ -67,7 +67,7 @@ body{background:radial-gradient(ellipse at 78% 0%,rgba(24,168,218,.30),transpare
 const indexPath = path.join(output, 'index.html');
 let html = fs.readFileSync(indexPath, 'utf8');
 if (!html.includes('CINEMA_OS_CYBER_SKIN')) {
-  html = html.replace('</head>', '<style id="CINEMA_OS_CYBER_SKIN">' + cinemaCss + '</style></head>');
+  html = html.replace('</head>', '<style id="CINEMA_OS_CYBER_SKIN">' + cinemaCss + weatherCss + '</style></head>');
 }
 // Seed Showy as an enabled Lampa extension on first launch. Existing user plugin settings are preserved.
 // Showy exposes VideoDB and several other providers; its own Telegram authorization may be required.
@@ -89,9 +89,69 @@ const bootstrap = `
   } catch(e) { console.warn('Cinema OS Online Mod bootstrap:', e); }
 })();
 `;
+if (!html.includes('CINEMA_OS_WEATHER_WIDGET')) {
+  html = html.replace('</body>', '<script id="CINEMA_OS_WEATHER_WIDGET">'+weatherScript+'</script></body>');
+}
 if (!html.includes('CINEMA_OS_SOURCE_BOOTSTRAP')) {
   html = html.replace(/<script>\s*window\.youtube_lazy_load = true/, '<script>\n        /* CINEMA_OS_SOURCE_BOOTSTRAP */\n        ' + bootstrap + '\n        window.youtube_lazy_load = true');
 }
+
+
+const weatherCss = `
+#cinema-os-weather{position:fixed;z-index:9999;top:18px;right:26px;display:flex;align-items:center;gap:10px;padding:9px 14px;border:1px solid rgba(57,220,255,.42);border-radius:12px;background:linear-gradient(110deg,rgba(5,17,34,.94),rgba(24,18,48,.94));box-shadow:0 5px 24px rgba(0,0,0,.34),0 0 18px rgba(57,220,255,.12);color:#f4f8ff;font:600 15px/1.2 Arial,sans-serif;pointer-events:none;backdrop-filter:blur(12px)}
+#cinema-os-weather .cos-weather-icon{font-size:25px;line-height:1}
+#cinema-os-weather .cos-weather-city{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8deaff}
+#cinema-os-weather .cos-weather-temp{font-size:21px;font-weight:800}
+#cinema-os-weather .cos-weather-detail{font-size:10px;color:#c5d8ee;white-space:nowrap}
+@media(max-width:900px){#cinema-os-weather{top:10px;right:10px;padding:6px 9px;gap:6px}#cinema-os-weather .cos-weather-detail{display:none}#cinema-os-weather .cos-weather-temp{font-size:17px}}
+`;
+const weatherScript = `
+(function(){
+  if (window.__cinemaOsWeatherLoaded) return;
+  window.__cinemaOsWeatherLoaded = true;
+  var url = 'https://api.open-meteo.com/v1/forecast?latitude=50.5956&longitude=36.5873&current=temperature_2m,apparent_temperature,relative_humidity_2m,precipitation,weather_code,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=Europe%2FMoscow&forecast_days=1';
+  var labels = {0:'Ясно',1:'Преимущественно ясно',2:'Переменная облачность',3:'Пасмурно',45:'Туман',48:'Изморозь',51:'Морось',53:'Морось',55:'Сильная морось',61:'Небольшой дождь',63:'Дождь',65:'Сильный дождь',71:'Небольшой снег',73:'Снег',75:'Сильный снег',77:'Снежная крупа',80:'Ливень',81:'Ливень',82:'Сильный ливень',85:'Снегопад',86:'Сильный снегопад',95:'Гроза',96:'Гроза с градом',99:'Сильная гроза'};
+  function icon(code){
+    if(code===0) return '☀️';
+    if(code===1||code===2) return '🌤️';
+    if(code===3) return '☁️';
+    if(code===45||code===48) return '🌫️';
+    if(code>=51&&code<=67||code>=80&&code<=82) return '🌧️';
+    if(code>=71&&code<=77||code===85||code===86) return '❄️';
+    if(code>=95) return '⛈️';
+    return '🌡️';
+  }
+  function mount(){
+    if(document.getElementById('cinema-os-weather')) return;
+    var el=document.createElement('div');
+    el.id='cinema-os-weather';
+    el.innerHTML='<span class="cos-weather-icon">⛅</span><span><span class="cos-weather-city">БЕЛГОРОД</span><br><span class="cos-weather-temp">--°</span></span><span class="cos-weather-detail">Загрузка погоды…</span>';
+    document.body.appendChild(el);
+  }
+  function update(){
+    mount();
+    fetch(url,{cache:'no-store'}).then(function(r){if(!r.ok) throw new Error('weather '+r.status);return r.json();}).then(function(data){
+      var c=data.current||{}, d=data.daily||{};
+      var el=document.getElementById('cinema-os-weather');
+      if(!el) return;
+      el.querySelector('.cos-weather-icon').textContent=icon(c.weather_code);
+      el.querySelector('.cos-weather-temp').textContent=Math.round(c.temperature_2m)+'°';
+      var desc=labels[c.weather_code]||'Погода';
+      var feels=Number.isFinite(c.apparent_temperature)?'Ощущается '+Math.round(c.apparent_temperature)+'°':'';
+      var wind=Number.isFinite(c.wind_speed_10m)?'Ветер '+Math.round(c.wind_speed_10m)+' км/ч':'';
+      var range=d.temperature_2m_min&&d.temperature_2m_max?' · '+Math.round(d.temperature_2m_min[0])+'° / '+Math.round(d.temperature_2m_max[0])+'°':'';
+      el.querySelector('.cos-weather-detail').textContent=desc+' · '+[feels,wind].filter(Boolean).join(' · ')+range;
+      el.title='Белгород: '+desc+'. Обновлено '+new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
+    }).catch(function(){
+      var el=document.getElementById('cinema-os-weather');
+      if(el) el.querySelector('.cos-weather-detail').textContent='Нет соединения с погодным сервисом';
+    });
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',function(){mount();update();});
+  else {mount();update();}
+  window.setInterval(update,15*60*1000);
+})();
+`;
 
 // Rebrand only the browser tab; upstream source and copyright notices remain intact.
 html = html.replace("<title>Lampa - Каталог фильмов и сериалов</title>", "<title>Cinema OS — powered by Lampa</title>");
