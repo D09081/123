@@ -10,6 +10,7 @@ const output = path.join(source, "build", "github", "lampa");
 fs.mkdirSync(vendor, { recursive: true });
 
 if (!fs.existsSync(path.join(source, "gulpfile.js"))) {
+  fs.rmSync(source, { recursive: true, force: true });
   execFileSync("git", ["clone", "--depth", "1", "https://github.com/yumata/lampa-source.git", source], {
     cwd: root,
     stdio: "inherit"
