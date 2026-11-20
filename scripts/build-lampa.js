@@ -77,16 +77,17 @@ const bootstrap = `
     var current = localStorage.getItem('plugins');
     var list = current ? JSON.parse(current) : [];
     if (!Array.isArray(list)) list = [];
-    var oldShowy = 'https://showy.online/m.js';
-    list = list.filter(function(item) {
-      return (typeof item === 'string' ? item : item && item.url) !== oldShowy;
+    var plugins = [
+      'https://nb557.github.io/plugins/online_mod.js',
+      'http://showy.online/m.js'
+    ];
+    plugins.forEach(function(url) {
+      if (!list.some(function(item) {
+        return (typeof item === 'string' ? item : item && item.url) === url;
+      })) list.push({url:url,status:1});
     });
-    var url = 'https://nb557.github.io/plugins/online_mod.js';
-    if (!list.some(function(item) {
-      return (typeof item === 'string' ? item : item && item.url) === url;
-    })) list.push({url:url,status:1});
     localStorage.setItem('plugins', JSON.stringify(list));
-  } catch(e) { console.warn('Cinema OS Online Mod bootstrap:', e); }
+  } catch(e) { console.warn('Cinema OS video sources bootstrap:', e); }
 })();
 `;
 if (!html.includes('CINEMA_OS_WEATHER_WIDGET')) {
