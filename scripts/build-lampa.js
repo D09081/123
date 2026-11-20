@@ -64,40 +64,6 @@ body{background:radial-gradient(ellipse at 78% 0%,rgba(24,168,218,.30),transpare
 ::-webkit-scrollbar-thumb{background:linear-gradient(#39dcff,#9667ff)!important}
 @media(max-width:800px){.head,.head__body{background:rgba(5,13,27,.99)!important}.card__view{border-radius:9px!important}}
 `;
-const indexPath = path.join(output, 'index.html');
-let html = fs.readFileSync(indexPath, 'utf8');
-if (!html.includes('CINEMA_OS_CYBER_SKIN')) {
-  html = html.replace('</head>', '<style id="CINEMA_OS_CYBER_SKIN">' + cinemaCss + weatherCss + '</style></head>');
-}
-// Seed Showy as an enabled Lampa extension on first launch. Existing user plugin settings are preserved.
-// Showy exposes VideoDB and several other providers; its own Telegram authorization may be required.
-const bootstrap = `
-(function(){
-  try {
-    var current = localStorage.getItem('plugins');
-    var list = current ? JSON.parse(current) : [];
-    if (!Array.isArray(list)) list = [];
-    var plugins = [
-      'https://nb557.github.io/plugins/online_mod.js',
-      'http://showy.online/m.js'
-    ];
-    plugins.forEach(function(url) {
-      if (!list.some(function(item) {
-        return (typeof item === 'string' ? item : item && item.url) === url;
-      })) list.push({url:url,status:1});
-    });
-    localStorage.setItem('plugins', JSON.stringify(list));
-  } catch(e) { console.warn('Cinema OS video sources bootstrap:', e); }
-})();
-`;
-if (!html.includes('CINEMA_OS_WEATHER_WIDGET')) {
-  html = html.replace('</body>', '<script id="CINEMA_OS_WEATHER_WIDGET">'+weatherScript+'</script></body>');
-}
-if (!html.includes('CINEMA_OS_SOURCE_BOOTSTRAP')) {
-  html = html.replace(/<script>\s*window\.youtube_lazy_load = true/, '<script>\n        /* CINEMA_OS_SOURCE_BOOTSTRAP */\n        ' + bootstrap + '\n        window.youtube_lazy_load = true');
-}
-
-
 const weatherCss = `
 #cinema-os-weather{position:fixed;z-index:9999;top:18px;right:26px;display:flex;align-items:center;gap:10px;padding:9px 14px;border:1px solid rgba(57,220,255,.42);border-radius:12px;background:linear-gradient(110deg,rgba(5,17,34,.94),rgba(24,18,48,.94));box-shadow:0 5px 24px rgba(0,0,0,.34),0 0 18px rgba(57,220,255,.12);color:#f4f8ff;font:600 15px/1.2 Arial,sans-serif;pointer-events:none;backdrop-filter:blur(12px)}
 #cinema-os-weather .cos-weather-icon{font-size:25px;line-height:1}
@@ -153,6 +119,41 @@ const weatherScript = `
   window.setInterval(update,15*60*1000);
 })();
 `;
+
+
+const indexPath = path.join(output, 'index.html');
+let html = fs.readFileSync(indexPath, 'utf8');
+if (!html.includes('CINEMA_OS_CYBER_SKIN')) {
+  html = html.replace('</head>', '<style id="CINEMA_OS_CYBER_SKIN">' + cinemaCss + weatherCss + '</style></head>');
+}
+// Seed Showy as an enabled Lampa extension on first launch. Existing user plugin settings are preserved.
+// Showy exposes VideoDB and several other providers; its own Telegram authorization may be required.
+const bootstrap = `
+(function(){
+  try {
+    var current = localStorage.getItem('plugins');
+    var list = current ? JSON.parse(current) : [];
+    if (!Array.isArray(list)) list = [];
+    var plugins = [
+      'https://nb557.github.io/plugins/online_mod.js',
+      'https://showy.online/m.js'
+    ];
+    plugins.forEach(function(url) {
+      if (!list.some(function(item) {
+        return (typeof item === 'string' ? item : item && item.url) === url;
+      })) list.push({url:url,status:1});
+    });
+    localStorage.setItem('plugins', JSON.stringify(list));
+  } catch(e) { console.warn('Cinema OS video sources bootstrap:', e); }
+})();
+`;
+if (!html.includes('CINEMA_OS_WEATHER_WIDGET')) {
+  html = html.replace('</body>', '<script id="CINEMA_OS_WEATHER_WIDGET">'+weatherScript+'</script></body>');
+}
+if (!html.includes('CINEMA_OS_SOURCE_BOOTSTRAP')) {
+  html = html.replace(/<script>\s*window\.youtube_lazy_load = true/, '<script>\n        /* CINEMA_OS_SOURCE_BOOTSTRAP */\n        ' + bootstrap + '\n        window.youtube_lazy_load = true');
+}
+
 
 // Rebrand only the browser tab; upstream source and copyright notices remain intact.
 html = html.replace("<title>Lampa - Каталог фильмов и сериалов</title>", "<title>Cinema OS — powered by Lampa</title>");
