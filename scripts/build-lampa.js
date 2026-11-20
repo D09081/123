@@ -84,12 +84,10 @@ const bootstrap = `
 })();
 `;
 if (!html.includes('CINEMA_OS_SOURCE_BOOTSTRAP')) {
-  html = html.replace(/<script>\\s*window\\.youtube_lazy_load = true/, '<script>\\n        /* CINEMA_OS_SOURCE_BOOTSTRAP */\\n        ' + bootstrap + '\\n        window.youtube_lazy_load = true');
+  html = html.replace(/<script>\s*window\.youtube_lazy_load = true/, '<script>\n        /* CINEMA_OS_SOURCE_BOOTSTRAP */\n        ' + bootstrap + '\n        window.youtube_lazy_load = true');
 }
 
 // Rebrand only the browser tab; upstream source and copyright notices remain intact.
-const indexPath = path.join(output, "index.html");
-let html = fs.readFileSync(indexPath, "utf8");
 html = html.replace("<title>Lampa - Каталог фильмов и сериалов</title>", "<title>Cinema OS — powered by Lampa</title>");
 fs.writeFileSync(indexPath, html, "utf8");
 const licensePath = path.join(source, "LICENSE");
