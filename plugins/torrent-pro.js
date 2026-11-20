@@ -1,6 +1,6 @@
 /* Cinema OS Torrent Pro integration — functional layer only.
  * Каталог и поиск остаются штатными средствами Lampa. На карточке показываются официальные
- * варианты просмотра, торрент-источники и подключаемые онлайн-балансеры. Погода — Белгород. */
+ * варианты просмотра, торрент-источники и подключаемые онлайн-балансеры. */
 (function () {
   'use strict';
 
@@ -392,11 +392,6 @@
       // Быстрые кнопки конкретных онлайн-балансеров прямо в «Где смотреть».
       var pluginById = {};
       ONLINE_PLUGINS.forEach(function (plugin) { pluginById[plugin.id] = plugin; });
-      if (pluginById.showy) items.push({
-        title: 'VideoDB / VideoCDN / HDVB · Showy',
-        subtitle: 'Подключить VideoDB и другие источники Showy',
-        ltp_plugin: pluginById.showy
-      });
       if (pluginById.hermes_movie) items.push({
         title: 'Kinogo / HDRezka / Filmix · Hermes',
         subtitle: 'Подключить отдельный поиск источников на карточке',
@@ -412,7 +407,7 @@
         subtitle: 'Дополнительные онлайн-источники Lampa',
         ltp_plugin: pluginById.online_cinema
       });
-      items.push({ title: 'Все онлайн-источники', subtitle: 'Showy, Hermes, Cinema, Онлайн МОД и другие подключения', ltp_open_plugins: true });
+      items.push({ title: 'Все онлайн-источники', subtitle: 'Cinema OS, Hermes, Cinema и Онлайн МОД', ltp_open_plugins: true });
       items.push({ title: 'Поиск открытых раздач', subtitle: 'Internet Archive и ваш Jackett; для magnet обычно нужен TorrServer', ltp_search_torrents: true });
       Lampa.Select.show({
         title: 'Где смотреть · ' + (movie.title || movie.name || query),
@@ -663,8 +658,8 @@
   /* ---------- подключаемые онлайн-балансеры ---------- */
 
   var ONLINE_PLUGINS = [
+    { id:'cinema_os', title:'Cinema OS · Наш плагин', internal:true, desc:'Встроенный плагин Cinema OS: каталог, карточки, поиск источников и торрент-функции.' },
     { id:'online_mod', title:'Онлайн МОД', url:'https://nb557.github.io/plugins/online_mod.js', desc:'HDRezka, Collaps, Filmix, FanCDN, Redheadsound, CDNVideoHub и другие. Сторонний плагин.' },
-    { id:'showy', title:'Showy', url:'http://showy.online/m.js', desc:'VideoDB, VideoCDN, HDVB, Kinotochka и другие. Может требовать активацию через Telegram; адрес HTTP.' },
     { id:'online_cinema', title:'Онлайн Cinema', url:'https://bylampa.github.io/cinema.js', desc:'Дополнительный набор онлайн-источников Cinema.' },
     { id:'hermes_movie', title:'Hermes Movie (Kinogo)', url:'https://asimut.github.io/l/b.js', desc:'HDRezka, Kinogo, Filmix, VideoCDN и другие. Добавляет отдельную кнопку поиска источников на карточке.' }
   ];
@@ -679,6 +674,7 @@
 
   function loadOnlinePlugin(plugin) {
     window.__ltp_external_plugins = window.__ltp_external_plugins || {};
+    if (plugin.internal) { hub(); return; }
     if (window.__ltp_external_plugins[plugin.id] === true) { notify(plugin.title + ': уже подключён в этой сессии.'); return; }
     if (window.__ltp_external_plugins[plugin.id] === 'loading') { notify(plugin.title + ': загрузка уже выполняется.'); return; }
     if (!Lampa.Utils || !Lampa.Utils.putScriptAsync) {
@@ -713,7 +709,7 @@
   function loadSelectedOnlinePlugins() {
     selectedOnlinePlugins().forEach(function (id) {
       var plugin = ONLINE_PLUGINS.filter(function (p) { return p.id === id; })[0];
-      if (plugin) loadOnlinePlugin(plugin);
+      if (plugin && !plugin.internal) loadOnlinePlugin(plugin);
     });
     var lampac = normalizeBase(str('ltp_lampac_url'));
     if (lampac && Lampa.Utils && Lampa.Utils.putScriptAsync && !window.__ltp_lampac_loaded) {
@@ -741,7 +737,7 @@
     var items = ONLINE_PLUGINS.map(function (p) {
       var enabled = selected.indexOf(p.id) >= 0;
       var state = enabled ? 'Включён · подключится при открытии этого раздела' : 'Не подключён';
-      return { title: (enabled ? '✓  ' : '+  ') + p.title, subtitle: state + ' · ' + p.desc, ltp_plugin: p };
+      return { title: (p.internal ? '▶  ' : enabled ? '✓  ' : '+  ') + p.title, subtitle: (p.internal ? 'Встроен в Cinema OS · открыть функции плагина' : state + ' · ' + p.desc), ltp_plugin: p };
     });
     items.push({ title:'Официальные кинотеатры', subtitle:'Netflix, Prime Video, Disney+ и другие — искать доступность через JustWatch', ltp_url:'https://www.justwatch.com/' });
     items.push({ title:'Lampac — 70+ источников', subtitle:'Укажите свой адрес сервера в настройках. Включает Kinogo, VideoDB и другие модули.', ltp_info:true });
@@ -751,6 +747,7 @@
       onBack:function(){ backTo(prev); },
       onSelect:function(a){
         if (a.ltp_plugin) {
+          if (a.ltp_plugin.internal) { hub(); return; }
           var ids = selectedOnlinePlugins();
           var at = ids.indexOf(a.ltp_plugin.id);
           if (a.ltp_plugin.id === 'online_mod') {
@@ -774,7 +771,7 @@
     var prev = currentController();
     var jb = jackettBase();
     var items = [
-      { title: '▶  Онлайн-источники', subtitle: 'Подключить Онлайн МОД, Showy, Cinema и Hermes', ltp_plugins: true },
+      { title: '▶  Онлайн-источники', subtitle: 'Открыть наш плагин, Онлайн МОД, Cinema и Hermes', ltp_plugins: true },
       { title: '🌍  Официальные кинотеатры', subtitle: 'Проверить Netflix и другие сервисы через JustWatch', ltp_url: 'https://www.justwatch.com/' },
       { title: '🎞  Бесплатные фильмы с открытой лицензией', subtitle: 'Internet Archive — проверяйте права на каждый материал', ltp_url: 'https://archive.org/details/movies' },
       { title: '🎥  Blender Open Movies', subtitle: 'Анимация и фильмы с открытыми лицензиями', ltp_url: 'https://studio.blender.org/films/' },
