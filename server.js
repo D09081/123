@@ -336,14 +336,43 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
+  // Serve the locally built, open-source Lampa application as the Cinema OS engine.
+  // API routes above remain native to this service.
+  const lampaRoot = path.join(ROOT, "vendor", "lampa-source", "build", "github", "lampa");
+  try {
+    const pathname = decodeURIComponent(url.pathname);
+    const relative = pathname === "/" ? "index.html" : pathname.replace(/^\\/+/, "");
+    const filePath = path.resolve(lampaRoot, relative);
+    if (filePath.startsWith(lampaRoot + path.sep) || filePath === path.join(lampaRoot, "index.html")) {
+      const resolved = fs.existsSync(filePath) && fs.statSync(filePath).isDirectory()
+        ? path.join(filePath, "index.html")
+        : filePath;
+      if (fs.existsSync(resolved) && fs.statSync(resolved).isFile()) {
+        const ext = path.extname(resolved).toLowerCase();
+        const types = {
+          ".html":"text/html; charset=utf-8",".js":"application/javascript; charset=utf-8",
+          ".css":"text/css; charset=utf-8",".json":"application/json; charset=utf-8",
+          ".svg":"image/svg+xml",".png":"image/png",".jpg":"image/jpeg",".jpeg":"image/jpeg",
+          ".webp":"image/webp",".gif":"image/gif",".woff":"font/woff",".woff2":"font/woff2",
+          ".ttf":"font/ttf",".ico":"image/x-icon",".mp3":"audio/mpeg",".mp4":"video/mp4"
+        };
+        res.writeHead(200, {
+          "content-type": types[ext] || "application/octet-stream",
+          "cache-control": ext === ".html" ? "no-cache" : "public, max-age=3600"
+        });
+        return fs.createReadStream(resolved).pipe(res);
+      }
+    }
+  } catch (error) {
+    console.error("Static app error:", error.message);
+  }
+
+  // Fallback page is kept only for build failures, so the service never returns a blank screen.
   if (url.pathname === "/" || url.pathname === "/index.html") {
     try {
       return send(res, 200, fs.readFileSync(path.join(ROOT, "index.html"), "utf8"), "text/html; charset=utf-8");
-    } catch {
-      return send(res, 404, "index.html not found", "text/plain; charset=utf-8");
-    }
+    } catch {}
   }
-
   return send(res, 404, { error: "not_found" });
 });
 
