@@ -152,6 +152,18 @@ const bootstrap = `
 if (!html.includes('CINEMA_OS_WEATHER_WIDGET')) {
   html = html.replace('</body>', '<script id="CINEMA_OS_WEATHER_WIDGET">'+weatherScript+'</script></body>');
 }
+
+// Install the design-free Torrent Pro functionality as a native Cinema OS extension.
+const torrentPluginSource = path.join(root, "plugins", "torrent-pro.js");
+if (!fs.existsSync(torrentPluginSource)) {
+  throw new Error("Cinema OS Torrent Pro source is missing: " + torrentPluginSource);
+}
+const pluginOutputDir = path.join(output, "plugins");
+fs.mkdirSync(pluginOutputDir, { recursive: true });
+fs.copyFileSync(torrentPluginSource, path.join(pluginOutputDir, "torrent-pro.js"));
+if (!html.includes("CINEMA_OS_TORRENT_PRO")) {
+  html = html.replace('</body>', '<script id="CINEMA_OS_TORRENT_PRO" src="/plugins/torrent-pro.js"></script></body>');
+}
 if (!html.includes('CINEMA_OS_SOURCE_BOOTSTRAP')) {
   html = html.replace(/<script>\s*window\.youtube_lazy_load = true/, '<script>\n        /* CINEMA_OS_SOURCE_BOOTSTRAP */\n        ' + bootstrap + '\n        window.youtube_lazy_load = true');
 }
