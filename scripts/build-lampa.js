@@ -82,7 +82,8 @@ const bootstrap = `
       return url !== 'https://showy.online/m.js' && url !== 'https://showy.online/m.js/';
     });
     var plugins = [
-      'https://nb557.github.io/plugins/online_mod.js'
+      'https://nb557.github.io/plugins/online_mod.js',
+      location.origin + '/plugins/torrent-pro.js'
     ];
     plugins.forEach(function(url) {
       if (!list.some(function(item) {
