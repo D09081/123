@@ -20,7 +20,15 @@ execFileSync("npm", ["install", "--no-audit", "--no-fund"], {
   cwd: source,
   stdio: "inherit"
 });
-execFileSync("npx", ["gulp", "pack_github"], {
+// Build the upstream source bundle and web assets in the same order as its development pipeline.
+const gulpfile = path.join(source, "gulpfile.js");
+let gulpText = fs.readFileSync(gulpfile, "utf8");
+if (!gulpText.includes("exports.cinemaos_build")) {
+  gulpText += "\n// Cinema OS build integration added 2026-11-20: expose the upstream build steps.\n" +
+    "exports.cinemaos_build = series(merge, plugins, sass_task, lang_task, sync_github, uglify_task, public_github, write_manifest, index_github);\n";
+  fs.writeFileSync(gulpfile, gulpText, "utf8");
+}
+execFileSync("npx", ["gulp", "cinemaos_build"], {
   cwd: source,
   stdio: "inherit"
 });
@@ -34,5 +42,7 @@ const indexPath = path.join(output, "index.html");
 let html = fs.readFileSync(indexPath, "utf8");
 html = html.replace("<title>Lampa - Каталог фильмов и сериалов</title>", "<title>Cinema OS — powered by Lampa</title>");
 fs.writeFileSync(indexPath, html, "utf8");
+const licensePath = path.join(source, "LICENSE");
+if (fs.existsSync(licensePath)) fs.copyFileSync(licensePath, path.join(output, "LICENSE"));
 
 console.log("Cinema OS engine built from yumata/lampa-source.");
