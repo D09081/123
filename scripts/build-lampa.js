@@ -62,6 +62,8 @@ body{background:radial-gradient(ellipse at 75% -10%,rgba(33,112,155,.24),transpa
 ::-webkit-scrollbar-thumb{background:#2e8ba8!important}
 @media(max-width:800px){.head{background:rgba(7,12,23,.98)!important}.card__view{border-radius:10px!important}}
 `;
+const indexPath = path.join(output, 'index.html');
+let html = fs.readFileSync(indexPath, 'utf8');
 if (!html.includes('CINEMA_OS_CYBER_SKIN')) {
   html = html.replace('</head>', '<style id="CINEMA_OS_CYBER_SKIN">' + cinemaCss + '</style></head>');
 }
@@ -82,7 +84,7 @@ const bootstrap = `
 })();
 `;
 if (!html.includes('CINEMA_OS_SOURCE_BOOTSTRAP')) {
-  html = html.replace('<script>\\n        window.youtube_lazy_load = true', '<script>\\n        /* CINEMA_OS_SOURCE_BOOTSTRAP */\\n        ' + bootstrap + '\\n        window.youtube_lazy_load = true');
+  html = html.replace(/<script>\\s*window\\.youtube_lazy_load = true/, '<script>\\n        /* CINEMA_OS_SOURCE_BOOTSTRAP */\\n        ' + bootstrap + '\\n        window.youtube_lazy_load = true');
 }
 
 // Rebrand only the browser tab; upstream source and copyright notices remain intact.
