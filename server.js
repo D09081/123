@@ -341,7 +341,7 @@ const server = http.createServer(async (req, res) => {
   const lampaRoot = path.join(ROOT, "vendor", "lampa-source", "build", "github", "lampa");
   try {
     const pathname = decodeURIComponent(url.pathname);
-    const relative = pathname === "/" ? "index.html" : pathname.replace(/^\\/+/, "");
+    const relative = pathname === "/" ? "index.html" : pathname.replace(/^\/+/, "");
     const filePath = path.resolve(lampaRoot, relative);
     if (filePath.startsWith(lampaRoot + path.sep) || filePath === path.join(lampaRoot, "index.html")) {
       const resolved = fs.existsSync(filePath) && fs.statSync(filePath).isDirectory()
