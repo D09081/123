@@ -7,7 +7,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const BOT_TOKEN = process.env.BOT_TOKEN || '';
 const ADMIN_IDS = (process.env.ADMIN_IDS || '898467551').split(',').map(x => x.trim()).filter(Boolean);
-const DATA_DIR = path.join(__dirname, 'data');
+const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 const DATA_FILE = path.join(DATA_DIR, 'family.json');
 fs.mkdirSync(DATA_DIR, { recursive: true });
 
@@ -108,7 +108,7 @@ app.post('/api/admin/announcement', auth, admin, async (req,res) => {
   if (!text || text.length > 3500) return res.status(400).json({error:'Текст пустой или слишком длинный.'});
   const recipients = [...new Set(db.users.map(u => String(u.id)))];
   const results = await Promise.allSettled(recipients.map(chat_id => fetch('https://api.telegram.org/bot'+BOT_TOKEN+'/sendMessage', {
-    method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify({chat_id,text,parse_mode:'HTML'})
+    method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify({chat_id,text})
   })));
   res.json({ok:true,recipients:recipients.length,sent:results.filter(x=>x.status==='fulfilled').length});
 });
