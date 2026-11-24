@@ -6,7 +6,7 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 const BOT_TOKEN = process.env.BOT_TOKEN || '';
-const ADMIN_IDS = (process.env.ADMIN_IDS || '898467551').split(',').map(x => x.trim()).filter(Boolean);
+const ADMIN_IDS = (process.env.ADMIN_IDS || '').split(',').map(x => x.trim()).filter(Boolean);
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 const DATA_FILE = path.join(DATA_DIR, 'family.json');
 fs.mkdirSync(DATA_DIR, { recursive: true });
