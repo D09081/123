@@ -12,7 +12,7 @@
 <section class="hero"><div class="eyebrow">НАШЕ МАЛЕНЬКОЕ ВСЁ</div><h1>Алина, <em>душа моя,</em><br>давай устроим хороший день</h1><p>Для семейных приключений, времени вдвоём<br>и маленьких радостей каждого из нас.</p><button class="btn primary" onclick="document.querySelector('#planner').scrollIntoView({behavior:'smooth'})">Придумать наш день ♥</button></section>
 <main class="wrap">
 <nav class="nav"><button class="tab active" data-tab="planner">Наш день</button><button class="tab" data-tab="family">С малышом</button><button class="tab" data-tab="couple">Только мы</button><button class="tab" data-tab="balance">Забота о нас</button><button class="tab" data-tab="memories">Наши моменты</button><button class="tab" data-tab="rituals">Наши ритуалы</button></nav>
-<div style="text-align:center;margin:-12px 0 22px"><a href="/admin.html" class="btn" style="display:inline-block;text-decoration:none">⚙ Админка</a></div>
+
 <section id="planner" class="view">
 <div class="panel"><div class="label">ПЛАНИРУЕМ БЕЗ СУЕТЫ</div><h2>Какой сегодня день?</h2><div class="moods" id="moods"><button class="mood active" data-mood="any">✨ Любой</button><button class="mood" data-mood="cozy">🕯 Уютный</button><button class="mood" data-mood="active">🌿 Активный</button><button class="mood" data-mood="romantic">♥ Романтичный</button><button class="mood" data-mood="fun">🎈 Весёлый</button></div>
 <div class="filters"><label>Кто участвует<select id="who"><option value="all">Все вместе</option><option value="baby">Я и малыш</option><option value="couple">Только мы вдвоём</option><option value="mom">Время для Алины</option><option value="dad">Папа берёт смену</option></select></label><label>Бюджет<select id="budget"><option value="any">Любой</option><option value="free">Бесплатно</option><option value="low">До 1000 ₽</option><option value="home">Без покупок, дома</option></select></label><label>Время<select id="duration"><option value="any">Любое</option><option value="short">До 30 минут</option><option value="medium">30–90 минут</option><option value="long">Больше часа</option></select></label></div>
@@ -93,7 +93,7 @@ async function cloudSync(){
   localStorage.setItem('familySaved',JSON.stringify(saved));
   localStorage.setItem('familyMemories',JSON.stringify(memories));
   renderSaved(); renderMemories(); stats(); cloudReady=true; pushCloud();
-  // Админка доступна по ссылке; сервер проверяет Telegram ID и не пускает посторонних.
+  // Панель администратора доступна только командами Telegram-бота.
  }catch(e){console.warn('Cloud sync unavailable:',e.message)}
 }
 async function pushCloud(){
