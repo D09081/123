@@ -114,4 +114,86 @@ app.post('/api/admin/announcement', auth, admin, async (req,res) => {
   res.json({ok:true,recipients:recipients.length,sent:results.filter(x=>x.status==='fulfilled').length});
 });
 
-app.listen(PORT, () => console.log('Our Little World listening on ' + PORT));
+
+async function telegram(method, payload = {}) {
+  if (!BOT_TOKEN) throw new Error('BOT_TOKEN is not configured');
+  const response = await fetch('https://api.telegram.org/bot' + BOT_TOKEN + '/' + method, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  const data = await response.json();
+  if (!data.ok) throw new Error(data.description || ('Telegram API ' + method + ' failed'));
+  return data.result;
+}
+
+const WEBAPP_URL = process.env.WEBAPP_URL || 'https://alina-love-miniapp.onrender.com';
+let polling = false;
+let updateOffset = 0;
+
+async function configureTelegramBot() {
+  if (!BOT_TOKEN) {
+    console.log('BOT_TOKEN is missing; Telegram bot polling is disabled.');
+    return;
+  }
+  try {
+    const me = await telegram('getMe');
+    console.log('Telegram bot connected: @' + me.username);
+    await telegram('deleteWebhook', { drop_pending_updates: false });
+    await telegram('setChatMenuButton', {
+      menu_button: { type: 'web_app', text: 'Открыть наш мир 💗', web_app: { url: WEBAPP_URL } }
+    });
+    await telegram('setMyCommands', { commands: [
+      { command: 'start', description: 'Открыть наш маленький мир 💗' },
+      { command: 'app', description: 'Открыть приложение' },
+      { command: 'help', description: 'Как пользоваться' }
+    ]});
+    console.log('Telegram Mini App menu button configured.');
+    pollTelegram();
+  } catch (error) {
+    console.error('Telegram bot setup failed:', error.message);
+    setTimeout(configureTelegramBot, 15000);
+  }
+}
+
+async function pollTelegram() {
+  if (polling) return;
+  polling = true;
+  while (true) {
+    try {
+      const updates = await telegram('getUpdates', { offset: updateOffset, timeout: 25, allowed_updates: ['message'] });
+      for (const update of updates) {
+        updateOffset = update.update_id + 1;
+        const message = update.message;
+        if (!message?.chat?.id || !message.text) continue;
+        const command = message.text.trim().split(/\s+/, 1)[0].split('@')[0].toLowerCase();
+        if (!['/start', '/app', '/help'].includes(command)) continue;
+
+        const user = message.from || {};
+        const id = String(user.id || message.chat.id);
+        if (!db.users.some(x => String(x.id) === id)) {
+          db.users.push({ id, firstName: user.first_name || '', username: user.username || '', seenAt: new Date().toISOString() });
+          persist();
+        }
+        const greeting = command === '/help'
+          ? 'Нажми кнопку ниже, чтобы открыть наше семейное пространство. Если кнопка не появилась, используй меню Telegram «Открыть наш мир 💗».'
+          : 'Привет! 💗 Здесь живёт наш маленький мир — идеи для совместных дней, времени вдвоём и семейных моментов.';
+        await telegram('sendMessage', {
+          chat_id: message.chat.id,
+          text: greeting,
+          reply_markup: {
+            inline_keyboard: [[{ text: 'Открыть наш маленький мир 💗', web_app: { url: WEBAPP_URL } }]]
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Telegram polling error:', error.message);
+      await new Promise(resolve => setTimeout(resolve, 5000));
+    }
+  }
+}
+
+app.listen(PORT, () => {
+  console.log('Our Little World listening on ' + PORT);
+  configureTelegramBot();
+});
