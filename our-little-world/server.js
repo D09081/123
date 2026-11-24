@@ -130,6 +130,62 @@ async function telegram(method, payload = {}) {
 const WEBAPP_URL = process.env.WEBAPP_URL || 'https://alina-love-miniapp.onrender.com';
 let polling = false;
 let updateOffset = 0;
+const pendingBroadcast = new Set();
+
+function adminKeyboard() {
+  return { inline_keyboard: [
+    [{ text: '📊 Статистика', callback_data: 'adm:stats' }, { text: '👥 Пользователи', callback_data: 'adm:users' }],
+    [{ text: '💡 Идеи', callback_data: 'adm:ideas' }, { text: '➕ Добавить идею', callback_data: 'adm:addidea' }],
+    [{ text: '📣 Рассылка', callback_data: 'adm:broadcast' }],
+    [{ text: '🌐 Открыть Mini App', web_app: { url: WEBAPP_URL } }]
+  ] };
+}
+
+async function showAdmin(chatId) {
+  await telegram('sendMessage', {
+    chat_id: chatId,
+    text: '⚙️ АДМИН-ПАНЕЛЬ «НАШ МАЛЕНЬКИЙ МИР»\\n\\nУправление прямо в Telegram. Выбери действие:',
+    reply_markup: adminKeyboard()
+  });
+}
+
+async function handleAdminCallback(callback) {
+  const fromId = String(callback.from?.id || '');
+  const chatId = callback.message?.chat?.id;
+  const data = callback.data || '';
+  if (!ADMIN_IDS.includes(fromId)) {
+    await telegram('answerCallbackQuery', { callback_query_id: callback.id, text: 'Доступ закрыт.' });
+    return;
+  }
+  await telegram('answerCallbackQuery', { callback_query_id: callback.id });
+  if (!chatId) return;
+  if (data === 'adm:menu') return showAdmin(chatId);
+  if (data === 'adm:stats') {
+    return telegram('sendMessage', { chat_id: chatId, text:
+      '📊 СТАТИСТИКА\\n\\nПользователей: ' + db.users.length +
+      '\\nИдей в каталоге: ' + db.ideas.length +
+      '\\nСохранённых планов: ' + db.saved.length +
+      '\\nВоспоминаний: ' + db.memories.length +
+      '\\n\\nОбновлено: ' + (db.updatedAt || 'пока нет данных'),
+      reply_markup: { inline_keyboard: [[{ text: '⬅️ В админку', callback_data: 'adm:menu' }]] }
+    });
+  }
+  if (data === 'adm:users') {
+    const list = db.users.slice(-30).reverse().map((u,i) => (i+1)+'. '+(u.firstName || 'Без имени')+(u.username ? ' (@'+u.username+')' : '')+' — ID '+u.id).join('\\n');
+    return telegram('sendMessage', { chat_id: chatId, text: '👥 ПОЛЬЗОВАТЕЛИ ('+db.users.length+')\\n\\n'+(list || 'Пока никого нет.'), reply_markup: { inline_keyboard: [[{ text: '⬅️ В админку', callback_data: 'adm:menu' }]] } });
+  }
+  if (data === 'adm:ideas') {
+    const list = db.ideas.slice(0,25).map((x,i)=>(i+1)+'. '+(x.emoji||'💗')+' '+x.title).join('\\n');
+    return telegram('sendMessage', { chat_id: chatId, text: '💡 ИДЕИ ('+db.ideas.length+')\\n\\n'+(list || 'Дополнительных идей пока нет.')+'\\n\\nЧтобы добавить идею, отправь команду:\\n/addidea Название идеи', reply_markup: { inline_keyboard: [[{ text: '⬅️ В админку', callback_data: 'adm:menu' }]] } });
+  }
+  if (data === 'adm:addidea') {
+    return telegram('sendMessage', { chat_id: chatId, text: '➕ Чтобы добавить идею, отправь одним сообщением:\\n/addidea Название идеи\\n\\nОна появится в подборке «Наш день».', reply_markup: { inline_keyboard: [[{ text: '⬅️ В админку', callback_data: 'adm:menu' }]] } });
+  }
+  if (data === 'adm:broadcast') {
+    pendingBroadcast.add(fromId);
+    return telegram('sendMessage', { chat_id: chatId, text: '📣 Пришли следующим сообщением текст рассылки. Я отправлю его всем пользователям, которые уже запускали бота или Mini App. Для отмены напиши /cancel.' });
+  }
+}
 
 async function configureTelegramBot() {
   if (!BOT_TOKEN) {
@@ -146,7 +202,7 @@ async function configureTelegramBot() {
     await telegram('setMyCommands', { commands: [
       { command: 'start', description: 'Открыть наш маленький мир 💗' },
       { command: 'app', description: 'Открыть приложение' },
-      { command: 'help', description: 'Как пользоваться' }
+      { command: 'help', description: 'Как пользоваться' },\n      { command: 'admin', description: 'Панель администратора' },\n      { command: 'addidea', description: 'Добавить идею (админ)' }
     ]});
     console.log('Telegram Mini App menu button configured.');
     pollTelegram();
@@ -161,7 +217,7 @@ async function pollTelegram() {
   polling = true;
   while (true) {
     try {
-      const updates = await telegram('getUpdates', { offset: updateOffset, timeout: 25, allowed_updates: ['message'] });
+      const updates = await telegram('getUpdates', { offset: updateOffset, timeout: 25, allowed_updates: ['message', 'callback_query'] });
       for (const update of updates) {
         updateOffset = update.update_id + 1;
         const message = update.message;
