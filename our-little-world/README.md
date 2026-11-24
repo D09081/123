@@ -16,7 +16,7 @@
 
 ```env
 BOT_TOKEN=токен_бота_от_BotFather
-ADMIN_IDS=898467551
+ADMIN_IDS=ваш_telegram_user_id
 PORT=3000
 ```
 
@@ -43,7 +43,7 @@ BOT_TOKEN="ваш_токен" ADMIN_IDS="898467551" npm start
 - Build Command: `npm install`
 - Start Command: `npm start`
 - Health Check Path: `/health`
-- Environment: `BOT_TOKEN`, `ADMIN_IDS=898467551`
+- Environment: `BOT_TOKEN`, `ADMIN_IDS=ваш_telegram_user_id`
 
 Для надёжного хранения семейных данных подключите постоянный диск и задайте `DATA_DIR` на путь диска либо подключите внешнюю БД. Сейчас MVP хранит данные в `data/family.json`; на хостингах с эфемерной файловой системой данные могут сброситься при пересоздании сервиса. Не используйте текущий файловый режим как единственную копию важных воспоминаний.
 
