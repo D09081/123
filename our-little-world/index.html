@@ -86,12 +86,12 @@ async function cloudSync(){
   const response=await fetch('/api/bootstrap',{headers:tgHeaders()});
   if(!response.ok) throw new Error('Telegram auth required');
   const cloud=await response.json();
-  if(Array.isArray(cloud.saved) && cloud.saved.length) saved=cloud.saved;
-  if(Array.isArray(cloud.memories) && cloud.memories.length) memories=cloud.memories;
+  if(Array.isArray(cloud.saved)) { const merged=[...cloud.saved,...saved]; saved=merged.filter((x,i,a)=>a.findIndex(y=>y[1]===x[1])===i).slice(0,500); }
+  if(Array.isArray(cloud.memories)) { const merged=[...cloud.memories,...memories]; memories=merged.filter((x,i,a)=>a.findIndex(y=>y.date===x.date&&y.text===x.text)===i).slice(0,500); }
   (cloud.ideas||[]).forEach(x=>ideas.unshift([x.emoji||'💗',x.title,x.description||'',x.mood||'cozy',x.who||'all',x.budget||'free',x.duration||'short',x.tip||'']));
   localStorage.setItem('familySaved',JSON.stringify(saved));
   localStorage.setItem('familyMemories',JSON.stringify(memories));
-  renderSaved(); renderMemories(); stats(); cloudReady=true;
+  renderSaved(); renderMemories(); stats(); cloudReady=true; pushCloud();
   if(cloud.isAdmin){const link=document.createElement('a');link.href='/admin.html';link.textContent='⚙ Моя админка';link.className='btn';link.style.textDecoration='none';link.style.margin='0 auto 18px';link.style.display='table';document.querySelector('.nav').after(link);}
  }catch(e){console.warn('Cloud sync unavailable:',e.message)}
 }
