@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: alina-love-miniapp
+    runtime: node
+    plan: free
+    region: frankfurt
+    branch: main
+    rootDir: our-little-world
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: BOT_TOKEN
+        sync: false
+      - key: ADMIN_IDS
+        sync: false
