@@ -80,13 +80,59 @@ app.get('/api/bootstrap', auth, (req,res) => res.json({
   ideas: db.ideas, saved: db.saved, memories: db.memories, tasks: db.tasks,
   isAdmin: ADMIN_IDS.includes(String(req.tgUser.id)), user: { id:req.tgUser.id, firstName:req.tgUser.first_name || '' }
 }));
-app.post('/api/sync', auth, (req,res) => {
+app.post('/api/sync', auth, async (req,res) => {
   const body = req.body || {};
-  for (const key of ['saved','memories','tasks']) {
-    if (Array.isArray(body[key])) db[key] = body[key].slice(0, 500);
+  if (Array.isArray(body.saved)) {
+    const incoming = body.saved.slice(0, 500);
+    const known = new Set(db.saved.map(x => Array.isArray(x) ? String(x[1]) : String(x?.title || '')));
+    const added = incoming.filter(x => {
+      const title = Array.isArray(x) ? String(x[1] || '') : String(x?.title || '');
+      return title && !known.has(title);
+    });
+    db.saved = [...incoming, ...db.saved].filter((x,i,a) => {
+      const title = Array.isArray(x) ? String(x[1] || '') : String(x?.title || '');
+      return title && a.findIndex(y => (Array.isArray(y) ? String(y[1] || '') : String(y?.title || '')) === title) === i;
+    }).slice(0,500);
+    if (added.length) {
+      const who = req.tgUser.first_name || 'Алина';
+      const lines = added.slice(0,8).map(x => '• ' + (Array.isArray(x) ? (x[0] || '♥') + ' ' + (x[1] || '') : (x.emoji || '♥') + ' ' + (x.title || ''))).join('\\n');
+      for (const id of ADMIN_IDS) {
+        try { await telegram('sendMessage', { chat_id:id, text:'💗 Душа моя выбрала кое-что на потом!\\n\\n' + who + ' сохранила в планы:\\n' + lines + (added.length > 8 ? '\\n…и ещё ' + (added.length-8) : '') }); }
+        catch (e) { console.error('Saved-plan notification failed:', e.message); }
+      }
+    }
   }
+  if (Array.isArray(body.memories)) db.memories = body.memories.slice(0,500);
+  if (Array.isArray(body.tasks)) db.tasks = body.tasks.slice(0,500);
   persist();
   res.json({ ok:true, updatedAt:db.updatedAt });
+});
+
+app.post('/api/heart', auth, async (req,res) => {
+  const count = Math.max(1, Math.min(20, Number(req.body?.count) || 1));
+  const who = String(req.tgUser.first_name || 'Алина').slice(0,60);
+  const message = '💌 ' + who + ' соскучилась и отправляет тебе ' + '💗'.repeat(count) + '\\n\\nПередай ей обнимашки. Она сейчас думает о тебе.';
+  let delivered = 0;
+  for (const id of ADMIN_IDS) {
+    try { await telegram('sendMessage', { chat_id:id, text:message }); delivered++; }
+    catch (e) { console.error('Heart notification failed:', e.message); }
+  }
+  if (!delivered) return res.status(503).json({error:'Не удалось отправить сердечки. Проверь настройки бота.'});
+  res.json({ok:true});
+});
+
+app.get('/api/weather', async (req,res) => {
+  try {
+    const url = 'https://api.open-meteo.com/v1/forecast?latitude=50.60&longitude=36.60&current=temperature_2m,apparent_temperature,precipitation,rain,showers,snowfall,weather_code,wind_speed_10m&daily=precipitation_probability_max,weather_code,temperature_2m_max,temperature_2m_min&forecast_days=1&timezone=Europe%2FMoscow';
+    const response = await fetch(url);
+    if (!response.ok) throw new Error('Weather provider unavailable');
+    const data = await response.json();
+    const c = data.current || {};
+    const badCode = [51,53,55,56,57,61,63,65,66,67,71,73,75,77,80,81,82,85,86,95,96,99].includes(Number(c.weather_code));
+    const bad = badCode || Number(c.precipitation || 0) >= 0.2 || Number(c.wind_speed_10m || 0) >= 35 || Number(c.apparent_temperature ?? c.temperature_2m) <= -10 || Number(c.apparent_temperature ?? c.temperature_2m) >= 32;
+    res.setHeader('Cache-Control','public, max-age=600');
+    res.json({ok:true,city:'Белгород',temperature:c.temperature_2m,feelsLike:c.apparent_temperature,precipitation:c.precipitation,wind:c.wind_speed_10m,code:c.weather_code,bad,probability:data.daily?.precipitation_probability_max?.[0] ?? null,high:data.daily?.temperature_2m_max?.[0] ?? null,low:data.daily?.temperature_2m_min?.[0] ?? null});
+  } catch (e) { res.status(502).json({ok:false,error:'Прогноз временно недоступен'}); }
 });
 app.get('/api/admin/overview', auth, admin, (req,res) => res.json({
   users:db.users, ideas:db.ideas, savedCount:db.saved.length, memoriesCount:db.memories.length,
