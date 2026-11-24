@@ -11,7 +11,7 @@
 <header class="top"><b>♥ OUR LITTLE WORLD</b><span>ТЫ · Я · НАШ МАЛЫШ</span></header>
 <section class="hero"><div class="eyebrow">НАШЕ МАЛЕНЬКОЕ ВСЁ</div><h1>Алина, <em>душа моя,</em><br>давай устроим хороший день</h1><p>Для семейных приключений, времени вдвоём<br>и маленьких радостей каждого из нас.</p><button class="btn primary" onclick="document.querySelector('#planner').scrollIntoView({behavior:'smooth'})">Придумать наш день ♥</button></section>
 <main class="wrap">
-<nav class="nav"><button class="tab active" data-tab="planner">Наш день</button><button class="tab" data-tab="family">С малышом</button><button class="tab" data-tab="couple">Только мы</button><button class="tab" data-tab="balance">Забота о нас</button><button class="tab" data-tab="memories">Наши моменты</button></nav>
+<nav class="nav"><button class="tab active" data-tab="planner">Наш день</button><button class="tab" data-tab="family">С малышом</button><button class="tab" data-tab="couple">Только мы</button><button class="tab" data-tab="balance">Забота о нас</button><button class="tab" data-tab="memories">Наши моменты</button><button class="tab" data-tab="rituals">Наши ритуалы</button></nav>
 <section id="planner" class="view">
 <div class="panel"><div class="label">ПЛАНИРУЕМ БЕЗ СУЕТЫ</div><h2>Какой сегодня день?</h2><div class="moods" id="moods"><button class="mood active" data-mood="any">✨ Любой</button><button class="mood" data-mood="cozy">🕯 Уютный</button><button class="mood" data-mood="active">🌿 Активный</button><button class="mood" data-mood="romantic">♥ Романтичный</button><button class="mood" data-mood="fun">🎈 Весёлый</button></div>
 <div class="filters"><label>Кто участвует<select id="who"><option value="all">Все вместе</option><option value="baby">Я и малыш</option><option value="couple">Только мы вдвоём</option><option value="mom">Время для Алины</option><option value="dad">Папа берёт смену</option></select></label><label>Бюджет<select id="budget"><option value="any">Любой</option><option value="free">Бесплатно</option><option value="low">До 1000 ₽</option><option value="home">Без покупок, дома</option></select></label><label>Время<select id="duration"><option value="any">Любое</option><option value="short">До 30 минут</option><option value="medium">30–90 минут</option><option value="long">Больше часа</option></select></label></div>
@@ -24,10 +24,13 @@
 <section id="balance" class="view hide"><div class="panel"><div class="label">ЧТОБЫ НИКТО НЕ ВЫГОРАЛ</div><h2>Забота распределяется, любовь — тоже</h2><div class="two"><div class="stat"><strong>♥</strong><b>Папина смена</b><p class="muted">Выбери конкретный отрезок, когда ты полностью берёшь малыша на себя, а Алина отдыхает.</p><button class="btn" onclick="addTask('Папа берёт малыша, Алина отдыхает')">Добавить в планы</button></div><div class="stat"><strong>☕</strong><b>Время Алины</b><p class="muted">Не «если останется время», а заранее запланированный отдых без чувства вины.</p><button class="btn" onclick="addTask('Время Алины для себя')">Добавить в планы</button></div><div class="stat"><strong>🤝</strong><b>Общее дело</b><p class="muted">Выберите одну бытовую задачу, которую сегодня закрываешь ты.</p><button class="btn" onclick="addTask('Я закрываю одну бытовую задачу')">Добавить в планы</button></div><div class="stat"><strong>🌙</strong><b>Вечер для двоих</b><p class="muted">Короткий разговор без телефонов: как прошёл день и чем помочь завтра.</p><button class="btn" onclick="addTask('15 минут разговора вдвоём')">Добавить в планы</button></div></div></div>
 <div class="panel"><div class="label">ВАШ МАЛЕНЬКИЙ ПРОГРЕСС</div><h2>Сколько хорошего мы уже сделали</h2><div class="two"><div class="stat"><strong id="taskCount">0</strong><p class="muted">идей сохранено</p></div><div class="stat"><strong id="memoryCount">0</strong><p class="muted">воспоминаний записано</p></div></div><p class="muted">Это не соревнование и не список обязанностей. Просто напоминание, что вы стараетесь друг для друга.</p></div></section>
 <section id="memories" class="view hide"><div class="panel"><div class="label">НАША СЕМЕЙНАЯ ЛЕТОПИСЬ</div><h2>Сохраним этот момент</h2><p class="muted">Запиши смешную фразу, первую прогулку, маленькую победу или просто хороший день. Записи остаются в браузере на этом устройстве.</p><label class="muted">Дата<input type="date" id="memoryDate"></label><label class="muted">Наш момент<textarea id="memoryText" rows="3" placeholder="Сегодня мы..."></textarea></label><button class="btn primary" id="addMemory">Сохранить воспоминание ♥</button><div class="list" id="memoriesList" style="margin-top:16px"></div></div></section>
+
+<section id="rituals" class="view hide"><div class="panel"><div class="label">МАЛЕНЬКИЕ ПРИВЫЧКИ БОЛЬШОЙ ЛЮБВИ</div><h2>Наши семейные ритуалы</h2><div class="two"><div class="stat"><strong>💬</strong><b>Вопрос дня</b><p class="muted" id="questionOfDay">Что сегодня заставило тебя улыбнуться?</p><button class="btn" id="nextQuestion">Другой вопрос ↻</button></div><div class="stat"><strong>🌟</strong><b>Традиция недели</b><p class="muted">Выберите одну маленькую традицию и повторяйте её каждую неделю.</p><button class="btn" onclick="addTask('Наша традиция недели: семейное фото по воскресеньям')">Добавить семейное фото</button></div></div><div class="stat" style="margin-top:14px"><strong>🫙</strong><b>Банка желаний</b><p class="muted">Записывайте маленькие желания — от прогулки до вечера без телефонов.</p><textarea id="wishText" rows="2" placeholder="Я хочу, чтобы мы однажды..."></textarea><button class="btn primary" id="addWish">Положить желание в банку ♥</button><div id="wishList" class="list" style="margin-top:12px"></div></div><div class="note">Идея не в том, чтобы добавить ещё обязанностей. Выбирайте только то, что радует вас обоих.</div></div></section>
 <div class="panel" style="text-align:center"><div class="label">НЕ ЗАБЫВАЙ ГЛАВНОЕ</div><h2>Алина, ты — мой любимый человек</h2><p class="muted">Спасибо за нашу семью. Я хочу не просто говорить, что люблю вас, а каждый день показывать это делами.</p><button class="btn primary" id="love">Открыть маленькое послание ♥</button></div>
 <div class="footer">Сделано с любовью для Алины, души моей, и вашей маленькой семьи ♡<br><span class="danger">Ваши планы и записи сохраняются локально в браузере. Не вводите сюда личные медицинские или другие чувствительные данные.</span></div>
 </main>
 <div class="modal hide" id="modal"><article><div style="font-size:42px;color:#b96e83">♡</div><div class="label">ОТ МЕНЯ ВАМ</div><h2>Моим любимым</h2><p>Алина, душа моя. Спасибо, что мы есть друг у друга. Я хочу, чтобы у тебя было время улыбаться, отдыхать и чувствовать себя любимой. А наш малыш рос в атмосфере тепла. Я рядом. И я выбираю нашу семью каждый день. ♥</p><button class="btn primary" id="close">Обнимаю ♥</button></article></div>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script>
 const ideas=[
 ["🧸","Семейный час на полу","Уберите телефоны, устройтесь рядом и поиграйте с малышом в подходящие его возрасту игры.","cozy","all","free","short","Выберите безопасные игрушки и следуйте интересу ребёнка."],
@@ -72,4 +75,39 @@ $("addMemory").onclick=()=>{let t=$("memoryText").value.trim();if(!t)return aler
 $("memoryDate").value=new Date().toISOString().slice(0,10);
 $("love").onclick=()=>$("modal").classList.remove("hide");$("close").onclick=()=>$("modal").classList.add("hide");$("modal").onclick=e=>{if(e.target===$("modal"))$("modal").classList.add("hide")};
 renderCards("familyTiles",familyCards);renderCards("coupleTiles",coupleCards);renderSaved();renderMemories();stats();
+
+const tgApp = window.Telegram?.WebApp;
+tgApp?.ready(); tgApp?.expand();
+let cloudReady = false;
+const tgHeaders = () => ({'Content-Type':'application/json','X-Telegram-Init-Data':tgApp?.initData || ''});
+async function cloudSync(){
+ if(!tgApp?.initData) return;
+ try{
+  const response=await fetch('/api/bootstrap',{headers:tgHeaders()});
+  if(!response.ok) throw new Error('Telegram auth required');
+  const cloud=await response.json();
+  if(Array.isArray(cloud.saved) && cloud.saved.length) saved=cloud.saved;
+  if(Array.isArray(cloud.memories) && cloud.memories.length) memories=cloud.memories;
+  (cloud.ideas||[]).forEach(x=>ideas.unshift([x.emoji||'💗',x.title,x.description||'',x.mood||'cozy',x.who||'all',x.budget||'free',x.duration||'short',x.tip||'']));
+  localStorage.setItem('familySaved',JSON.stringify(saved));
+  localStorage.setItem('familyMemories',JSON.stringify(memories));
+  renderSaved(); renderMemories(); stats(); cloudReady=true;
+  if(cloud.isAdmin){const link=document.createElement('a');link.href='/admin.html';link.textContent='⚙ Моя админка';link.className='btn';link.style.textDecoration='none';link.style.margin='0 auto 18px';link.style.display='table';document.querySelector('.nav').after(link);}
+ }catch(e){console.warn('Cloud sync unavailable:',e.message)}
+}
+async function pushCloud(){
+ if(!cloudReady) return;
+ try{await fetch('/api/sync',{method:'POST',headers:tgHeaders(),body:JSON.stringify({saved,memories})})}catch(e){console.warn(e)}
+}
+const originalPersist=persist;
+persist=function(){originalPersist();pushCloud()};
+const originalRenderMemories=renderMemories;
+renderMemories=function(){originalRenderMemories();pushCloud()};
+const dailyQuestions=['Что сегодня заставило тебя улыбнуться?','Чем я могу облегчить твой завтрашний день?','Какой наш момент ты хотела бы повторить?','Что тебе сейчас больше всего хочется — отдыха, помощи или объятий?','За что ты сегодня благодарна себе?','Куда бы мы отправились, если бы завтра был свободный день?','Что хорошего мы можем сделать друг для друга уже сегодня?'];
+$('nextQuestion')?.addEventListener('click',()=>{$('questionOfDay').textContent=dailyQuestions[Math.floor(Math.random()*dailyQuestions.length)]});
+let wishes=JSON.parse(localStorage.getItem('familyWishes')||'[]');
+function renderWishes(){const el=$('wishList');if(!el)return;el.innerHTML='';if(!wishes.length){el.textContent='Банка пока пустая — добавьте первое желание ♥';return}wishes.forEach((w,i)=>{const d=document.createElement('div');d.className='item';const s=document.createElement('span');s.textContent='✨ '+w;const b=document.createElement('button');b.textContent='×';b.onclick=()=>{wishes.splice(i,1);localStorage.setItem('familyWishes',JSON.stringify(wishes));renderWishes()};d.append(s,b);el.append(d)})}
+$('addWish')?.addEventListener('click',()=>{const v=$('wishText').value.trim();if(!v)return;wishes.unshift(v);localStorage.setItem('familyWishes',JSON.stringify(wishes));$('wishText').value='';renderWishes()});
+renderWishes(); cloudSync();
+
 </script></body></html>
