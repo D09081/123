@@ -52,6 +52,7 @@ app.use((req,res,next) => {
   res.setHeader('Referrer-Policy','strict-origin-when-cross-origin');
   next();
 });
+app.use('/data', (req,res) => res.sendStatus(404));
 app.use(express.static(__dirname, { index: 'index.html' }));
 
 function auth(req,res,next) {
