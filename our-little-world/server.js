@@ -220,26 +220,72 @@ async function pollTelegram() {
       const updates = await telegram('getUpdates', { offset: updateOffset, timeout: 25, allowed_updates: ['message', 'callback_query'] });
       for (const update of updates) {
         updateOffset = update.update_id + 1;
+        if (update.callback_query) {
+          await handleAdminCallback(update.callback_query);
+          continue;
+        }
         const message = update.message;
         if (!message?.chat?.id || !message.text) continue;
+        const senderId = String(message.from?.id || '');
         const command = message.text.trim().split(/\s+/, 1)[0].split('@')[0].toLowerCase();
-        if (!['/start', '/app', '/help'].includes(command)) continue;
 
+        if (command === '/admin') {
+          if (!ADMIN_IDS.includes(senderId)) {
+            await telegram('sendMessage', { chat_id: message.chat.id, text: '⛔ Эта команда доступна только администратору.' });
+          } else {
+            await showAdmin(message.chat.id);
+          }
+          continue;
+        }
+        if (command === '/cancel' && pendingBroadcast.has(senderId)) {
+          pendingBroadcast.delete(senderId);
+          await telegram('sendMessage', { chat_id: message.chat.id, text: 'Рассылка отменена.' });
+          continue;
+        }
+        if (command === '/addidea' && ADMIN_IDS.includes(senderId)) {
+          const title = message.text.replace(/^\/addidea(?:@\w+)?\s*/i, '').trim();
+          if (!title || title.length > 100) {
+            await telegram('sendMessage', { chat_id: message.chat.id, text: 'Формат: /addidea Название идеи (до 100 символов).' });
+          } else {
+            db.ideas.unshift({ id: crypto.randomUUID(), emoji: '💗', title, description: '', mood: 'cozy', who: 'all', budget: 'free', duration: 'short', tip: '', createdAt: new Date().toISOString() });
+            persist();
+            await telegram('sendMessage', { chat_id: message.chat.id, text: '✅ Идея добавлена: ' + title });
+          }
+          continue;
+        }
+        if (pendingBroadcast.has(senderId) && ADMIN_IDS.includes(senderId)) {
+          pendingBroadcast.delete(senderId);
+          const broadcastText = message.text.trim();
+          if (!broadcastText || broadcastText.length > 3500) {
+            await telegram('sendMessage', { chat_id: message.chat.id, text: 'Текст пустой или длиннее 3500 символов. Нажми «Рассылка» в /admin и попробуй снова.' });
+          } else {
+            const recipients = [...new Set(db.users.map(u => String(u.id)))];
+            const results = await Promise.allSettled(recipients.map(chat_id => telegram('sendMessage', { chat_id, text: broadcastText })));
+            const sent = results.filter(x => x.status === 'fulfilled').length;
+            await telegram('sendMessage', { chat_id: message.chat.id, text: '✅ Рассылка завершена. Успешно: ' + sent + ' из ' + recipients.length + '.' });
+          }
+          continue;
+        }
+
+        if (!['/start', '/app', '/help'].includes(command)) continue;
         const user = message.from || {};
         const id = String(user.id || message.chat.id);
-        if (!db.users.some(x => String(x.id) === id)) {
+        const existing = db.users.find(x => String(x.id) === id);
+        if (!existing) {
           db.users.push({ id, firstName: user.first_name || '', username: user.username || '', seenAt: new Date().toISOString() });
-          persist();
+        } else {
+          existing.firstName = user.first_name || existing.firstName || '';
+          existing.username = user.username || existing.username || '';
+          existing.seenAt = new Date().toISOString();
         }
+        persist();
         const greeting = command === '/help'
-          ? 'Нажми кнопку ниже, чтобы открыть наше семейное пространство. Если кнопка не появилась, используй меню Telegram «Открыть наш мир 💗».'
+          ? 'Нажми кнопку ниже, чтобы открыть наше семейное пространство. Для управления используй /admin (только администратор).'
           : 'Привет! 💗 Здесь живёт наш маленький мир — идеи для совместных дней, времени вдвоём и семейных моментов.';
         await telegram('sendMessage', {
           chat_id: message.chat.id,
           text: greeting,
-          reply_markup: {
-            inline_keyboard: [[{ text: 'Открыть наш маленький мир 💗', web_app: { url: WEBAPP_URL } }]]
-          }
+          reply_markup: { inline_keyboard: [[{ text: 'Открыть наш маленький мир 💗', web_app: { url: WEBAPP_URL } }]] }
         });
       }
     } catch (error) {
