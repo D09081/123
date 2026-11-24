@@ -1,0 +1,16 @@
+{
+  "name": "our-little-world-miniapp",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Family Telegram Mini App for Alina and family",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}
