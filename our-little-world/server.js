@@ -202,7 +202,9 @@ async function configureTelegramBot() {
     await telegram('setMyCommands', { commands: [
       { command: 'start', description: 'Открыть наш маленький мир 💗' },
       { command: 'app', description: 'Открыть приложение' },
-      { command: 'help', description: 'Как пользоваться' },\n      { command: 'admin', description: 'Панель администратора' },\n      { command: 'addidea', description: 'Добавить идею (админ)' }
+      { command: 'help', description: 'Как пользоваться' },
+      { command: 'admin', description: 'Панель администратора' },
+      { command: 'addidea', description: 'Добавить идею (админ)' }
     ]});
     console.log('Telegram Mini App menu button configured.');
     pollTelegram();
